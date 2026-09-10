@@ -1,0 +1,50 @@
+name: ledger
+description: "Offline-first shared household ledger built with event sourcing and CQRS."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.8
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # State management (CQRS read side feeds Riverpod streams).
+  flutter_riverpod: ^2.6.1
+
+  # Local event store + materialized projections (typed SQL).
+  drift: ^2.28.0
+  sqlite3_flutter_libs: ^0.5.24
+  path_provider: ^2.1.5
+  path: ^1.9.0
+
+  # Time-ordered, causally-aware event identity.
+  uuid: ^4.5.1
+
+  # Connectivity signal to trigger sync.
+  connectivity_plus: ^6.1.0
+
+  # Navigation.
+  go_router: ^14.6.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+
+  # Codegen for drift.
+  build_runner: ^2.4.13
+  drift_dev: ^2.28.0
+
+  # Test doubles.
+  mocktail: ^1.0.4
+
+  # Strict lint set.
+  very_good_analysis: ^7.0.0
+
+flutter:
+  uses-material-design: true
