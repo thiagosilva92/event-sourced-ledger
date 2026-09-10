@@ -16,3 +16,6 @@ linter:
     # Dependencies are grouped by purpose with comments, which is more
     # readable here than a flat alphabetical list.
     sort_pub_dependencies: false
+    # Sequential calls to the same object read fine as statements, especially
+    # in arrange/act/assert tests; forcing cascades hurts readability here.
+    cascade_invocations: false
