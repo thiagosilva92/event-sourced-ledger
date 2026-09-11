@@ -146,3 +146,9 @@ extension RegisterTallyEvents on EventRegistry {
     );
   }
 }
+
+/// Top-level factory equivalent to `EventRegistry()..registerTallyEvents()`.
+/// `DriftEventStore` requires a top-level/static factory (not a closure) so
+/// it can rebuild the registry inside a worker isolate for large reads —
+/// this is that factory for every test that needs one.
+EventRegistry buildTallyRegistry() => EventRegistry()..registerTallyEvents();

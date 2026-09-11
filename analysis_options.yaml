@@ -33,3 +33,7 @@ linter:
     # consistently across this codebase; see e.g. HybridLogicalClock and
     # SyncService.
     prefer_initializing_formals: false
+    # No logging framework is wired up yet. `print` in a debug-only screen
+    # or a performance test's reported numbers is the right tool until
+    # there is one — not worth an `ignore:` at every call site.
+    avoid_print: false

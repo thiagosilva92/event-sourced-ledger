@@ -71,12 +71,15 @@ data          ── Drift event store, projection tables, sync client
   write model and read model will never share types.
 - **Money** is an integer-minor-unit value object with an explicit currency —
   never `double`. Double-entry transactions must balance to zero.
-- **Concurrency (planned):** rebuilding projections from a long event log will
-  run in a dedicated `Isolate` so the UI thread never blocks — Dart has no
-  shared-memory threads; isolates communicate by message passing. Not wired up
-  yet: `ProjectionRunner` currently folds on the caller's isolate. See
-  [docs/concurrency.md](docs/concurrency.md) for the design and why isolates
-  are the answer to "virtual threads" here.
+- **Concurrency:** decoding a large batch read from the event log — what
+  `ProjectionRunner.rebuild()` does over the whole log — runs in a worker
+  `Isolate` above a size threshold, measured (not assumed) to matter: ~180ms
+  of synchronous JSON-decode for 10,000 events before this existed. Dart has
+  no shared-memory threads; isolates communicate by message passing. See
+  [docs/concurrency.md](docs/concurrency.md) for the measurements, the
+  runtime proof it actually stopped blocking the caller (a concurrent
+  heartbeat timer that keeps ticking throughout), and why isolates are the
+  answer to "virtual threads" here.
 
 ## Status
 
@@ -96,12 +99,16 @@ commit history for the exact sequence.
   with a multi-device convergence test. Deliberately uses a `sequence`
   cursor rather than `readSince`'s `Hlc` cursor — see `SyncService`'s doc
   comment for why.
+- ✅ Isolate-offloaded decode for large event-log reads, with a real device
+  smoke test (`lib/main_debug_smoke_test.dart`) and a test that proves the
+  calling isolate stays responsive during it, not just a smaller number —
+  see [docs/concurrency.md](docs/concurrency.md)
+- ⏳ Isolate offload for a large incoming sync batch — same idea, not
+  applied there yet
 - ⏳ Persisted (Drift-backed) `SyncCursorStore` — today's `SyncCursorStore`
   is in-memory only; cursors don't survive an app restart yet
 - ⏳ `accounts` / `transactions` / `reports` features
 - ⏳ Presentation layer (Riverpod providers, pages)
-- ⏳ Isolate-offloaded projection rebuild and sync-batch validation (see
-  [docs/concurrency.md](docs/concurrency.md) — designed, not wired up)
 
 ## Running
 
@@ -113,3 +120,16 @@ flutter run
 ```
 
 Requires Flutter 3.47+ / Dart 3.13+.
+
+### Verifying the database on a real device
+
+There's no real UI yet, so `flutter run` just shows a placeholder. To check
+that the production database path (a real file via `path_provider`, native
+SQLite, a background isolate) actually works on physical hardware:
+
+```bash
+flutter run -t lib/main_debug_smoke_test.dart -d <device>
+```
+
+Confirmed working on Android 16 / arm64. This is temporary — see the doc
+comment on `DbSmokeTestScreen` for when to delete it.

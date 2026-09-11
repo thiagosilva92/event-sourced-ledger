@@ -17,9 +17,38 @@ batch of events during sync) this app's design uses **isolates**:
 
 | Work | Mechanism | Why off the main isolate | Status |
 | --- | --- | --- | --- |
-| Rebuild all projections from scratch | long-lived worker isolate | folding thousands of events would drop frames | planned — `ProjectionRunner.rebuild()` currently runs on the caller's isolate |
-| Validate + order an incoming sync batch | `Isolate.run` | keeps the UI responsive during sync | planned — `sync/` not built yet |
-| Single command handling | main isolate | cheap; rehydration is snapshot-bounded | current behaviour |
+| Decoding a large batch read from the event log (feeds `ProjectionRunner.rebuild()`) | `Isolate.run`, in `DriftEventStore.readAll` | measured: ~150-180ms of synchronous JSON-decode + registry dispatch for 10,000 events — see below | **done** |
+| Decoding an incoming sync batch (`FakeSyncTransport.pull` → `SyncService`) | — | keeps the UI responsive while absorbing a large offline backlog | planned — still decodes on the caller's isolate today |
+| Single command handling | main isolate | cheap; rehydration is snapshot-bounded | current behaviour, by design (not worth offloading) |
+
+#### Rebuild: measured, not assumed
+
+`test/performance/projection_rebuild_load_test.dart` first measured the *old*
+always-synchronous behavior before building anything: folding 10,000 events
+cost ~180ms, entirely in reading rows and turning them into `DomainEvent`
+objects (JSON decode + `EventRegistry` dispatch) — the fold step itself
+measured ~0ms. That decode is what `DriftEventStore.readAll` now offloads to
+a worker isolate once a batch crosses a size threshold (500 rows, chosen from
+the same measurements). Below the threshold it stays inline — spawning an
+isolate has its own fixed cost (isolate startup, copying data across), which
+would make small reads *slower*, not faster.
+
+The worker isolate rebuilds its own `EventRegistry` from a **top-level
+factory function** passed into `DriftEventStore` rather than receiving the
+caller's registry object — registered deserializers are arbitrary closures
+from feature code, and "one designated top-level function must be
+isolate-safe" is a much easier bar to guarantee than "every closure anyone
+ever registers must be".
+
+The proof this actually solved the problem isn't a smaller wall-clock number
+— isolate spawning has real overhead, so total latency for one rebuild can be
+similar or even a little higher. The proof is a test that runs a 2ms
+heartbeat timer on the calling isolate concurrently with a large `readAll()`
+and counts how many times it fires: with decoding blocking that isolate
+synchronously, it could not fire even once until the call returned; with
+decoding offloaded, it keeps ticking throughout. That's a runtime measurement
+of the actual claim (the isolate stayed free to do other things), not a
+description of what the code is supposed to do.
 
 ### Note on "virtual threads"
 

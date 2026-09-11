@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:isolate';
 
 import 'package:drift/drift.dart';
 import 'package:ledger/core/clock/hlc.dart';
@@ -19,10 +20,21 @@ import 'package:ledger/eventsourcing/event_store.dart';
 /// [registry], so every event type used with this store must be registered
 /// there first.
 class DriftEventStore implements EventStore {
-  DriftEventStore(this._db, this.registry);
+  /// [registryFactory] builds a fresh [EventRegistry] with every event type
+  /// this store needs to decode registered on it. It must be a **top-level
+  /// or static function** (not a method tear-off or a closure capturing
+  /// anything) — [readAll] sends it, unevaluated, to a worker isolate for
+  /// large result sets, so it has to be safe to run there with no shared
+  /// state. It's called once immediately for normal (small-batch) decoding
+  /// on this isolate, and again inside a worker isolate only when a batch
+  /// is large enough to be worth offloading — see [_isolateDecodeThreshold].
+  DriftEventStore(this._db, EventRegistry Function() registryFactory)
+    : registry = registryFactory(),
+      _registryFactory = registryFactory;
 
   final AppDatabase _db;
   final EventRegistry registry;
+  final EventRegistry Function() _registryFactory;
 
   final StreamController<DomainEvent> _changes =
       StreamController<DomainEvent>.broadcast();
@@ -95,6 +107,11 @@ class DriftEventStore implements EventStore {
     return rows.map(_toDomainEvent).toList();
   }
 
+  /// Below this many rows, decoding inline is faster than the fixed cost of
+  /// spawning a worker isolate (a few ms) — chosen from the measurements in
+  /// `test/performance/projection_rebuild_load_test.dart`, not a guess.
+  static const _isolateDecodeThreshold = 500;
+
   @override
   Future<List<SequencedEvent>> readAll({int afterSequence = 0}) async {
     final rows =
@@ -102,9 +119,40 @@ class DriftEventStore implements EventStore {
               ..where((row) => row.sequence.isBiggerThanValue(afterSequence))
               ..orderBy([(row) => OrderingTerm(expression: row.sequence)]))
             .get();
-    return rows
-        .map((row) => SequencedEvent(row.sequence, _toDomainEvent(row)))
-        .toList();
+
+    final events = rows.length >= _isolateDecodeThreshold
+        ? await _decodeInWorkerIsolate(rows)
+        : rows.map(_toDomainEvent).toList();
+
+    return [
+      for (var i = 0; i < rows.length; i++)
+        SequencedEvent(rows[i].sequence, events[i]),
+    ];
+  }
+
+  /// Decodes a large batch of rows off this isolate, so folding thousands
+  /// of events into a projection (`ProjectionRunner.rebuild`, the reason
+  /// this exists) doesn't block the isolate driving the UI. Measured cost
+  /// of *not* doing this: see `docs/concurrency.md` and the "before" numbers
+  /// in `test/performance/projection_rebuild_load_test.dart`.
+  ///
+  /// Rebuilds a fresh [EventRegistry] via [_registryFactory] inside the
+  /// worker isolate rather than sending [registry] itself — registered
+  /// deserializers are arbitrary closures from feature code, and requiring
+  /// every one of them to be provably isolate-safe is a much easier bar to
+  /// clear for "one designated top-level function" than for "every closure
+  /// anyone ever registers".
+  Future<List<DomainEvent>> _decodeInWorkerIsolate(
+    List<EventLogRow> rows,
+  ) async {
+    final registryFactory = _registryFactory;
+    final decoded = await Isolate.run(() {
+      final isolateRegistry = registryFactory();
+      return rows
+          .map((row) => _toDomainEventWith(row, isolateRegistry))
+          .toList();
+    });
+    return decoded;
   }
 
   @override
@@ -173,23 +221,30 @@ class DriftEventStore implements EventStore {
         );
   }
 
-  DomainEvent _toDomainEvent(EventLogRow row) {
-    final metadata = EventMetadata(
-      eventId: row.eventId,
-      aggregateId: row.aggregateId,
-      timestamp: Hlc(
-        wallMillis: row.hlcWallMillis,
-        counter: row.hlcCounter,
-        nodeId: row.hlcNodeId,
-      ),
-    );
-    final payload = jsonDecode(row.payloadJson) as Map<String, Object?>;
-    return registry.deserialize(row.eventType, metadata, payload);
-  }
+  DomainEvent _toDomainEvent(EventLogRow row) =>
+      _toDomainEventWith(row, registry);
 
   /// Closes the underlying database. Does not delete data on disk.
   Future<void> dispose() async {
     await _changes.close();
     await _db.close();
   }
+}
+
+/// Top-level so it can run inside a worker isolate (see
+/// [DriftEventStore._decodeInWorkerIsolate]) without capturing a
+/// [DriftEventStore] instance — only [row] and [registry] cross the
+/// boundary, both of which are plain data.
+DomainEvent _toDomainEventWith(EventLogRow row, EventRegistry registry) {
+  final metadata = EventMetadata(
+    eventId: row.eventId,
+    aggregateId: row.aggregateId,
+    timestamp: Hlc(
+      wallMillis: row.hlcWallMillis,
+      counter: row.hlcCounter,
+      nodeId: row.hlcNodeId,
+    ),
+  );
+  final payload = jsonDecode(row.payloadJson) as Map<String, Object?>;
+  return registry.deserialize(row.eventType, metadata, payload);
 }
