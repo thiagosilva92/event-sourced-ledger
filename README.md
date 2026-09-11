@@ -212,6 +212,13 @@ commit history for the exact sequence.
   doesn't guarantee
 - ⏳ Isolate offload for a large incoming sync batch — same idea, not
   applied there yet
+- ⏳ No transaction-recording screen yet — `RecordTransactionHandler` and
+  `AccountBalanceProjection` are fully built and tested (see below), but the
+  only UI so far is opening/closing accounts; entering a double-entry
+  transaction still has no form
+- ⏳ Device node id regenerates on every launch instead of being persisted —
+  harmless until sync is actually wired into the UI, since each launch is
+  still internally consistent
 - ✅ Persisted (Drift-backed) `SyncCursorStore` — `DriftSyncCursorStore`
   survives an app restart, verified against the same contract as
   `InMemorySyncCursorStore` (`test/sync/sync_cursor_store_contract.dart`).
@@ -250,8 +257,27 @@ commit history for the exact sequence.
     projection at runtime on any account event (an un-exhaustive
     `switch` with no default) had the test not caught it before it
     shipped.
-- ⏳ Presentation layer (Riverpod providers, pages) — the only thing left
-  between this and an actual screen
+- ✅ Presentation layer (Riverpod providers, pages) — the app has a real
+  screen now, wired end-to-end to the write and read paths above:
+  - `app/providers/` — one `Provider`/`NotifierProvider` per infrastructure
+    piece and command handler, plus `_LiveProjectionNotifier<S>`, a base
+    class that subscribes to `EventStore.changes` and keeps a projection's
+    in-memory state current (`rebuild()` once, `catchUp()` on every new
+    event) so the UI never polls.
+  - `AccountsListPage` / `OpenAccountPage` (`features/accounts/presentation/`),
+    routed with `go_router`. `AccountSummary` merges the balance projection
+    and the directory projection into one view-model so the widget layer
+    never touches either projection directly.
+  - Verified two ways: widget tests
+    (`test/features/accounts/presentation/`) drive the real `LedgerApp`
+    widget tree against a `ProviderScope`-overridden in-memory stack, and —
+    the test no widget test can substitute for — **manually, on the same
+    physical Xiaomi device** referenced above: opened two accounts, both
+    listed correctly, closed one via long-press, zero exceptions. That run
+    is what confirmed the debug-tool bug below was actually gone, not just
+    theoretically fixed.
+  - 178/178 tests passing (unit, contract, architecture, load, benchmark,
+    migration, widget), locally and in CI.
 
 ## Running
 
