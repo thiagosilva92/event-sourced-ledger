@@ -1,31 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:ledger/app/router.dart';
 
 /// Root widget of the application.
 ///
-/// Routing, theming and dependency wiring are attached here as the
-/// corresponding layers land. For now it renders a placeholder so the
-/// scaffold compiles and can be smoke-tested.
+/// Dependency wiring lives in `app/providers/` (injected via
+/// `ProviderScope` in `main.dart`); routing lives in `app/router.dart`.
+/// This widget just wires theme + router together.
 class LedgerApp extends StatelessWidget {
   const LedgerApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
       title: 'Household Ledger',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
         useMaterial3: true,
       ),
-      home: const _PlaceholderHome(),
+      routerConfig: appRouter,
     );
-  }
-}
-
-class _PlaceholderHome extends StatelessWidget {
-  const _PlaceholderHome();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: Text('Household Ledger')));
   }
 }
