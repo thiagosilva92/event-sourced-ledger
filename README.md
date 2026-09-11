@@ -26,12 +26,21 @@ Every change is captured as an immutable domain event appended to a local log
 (`AccountOpened`, `TransactionRecorded`, `TransactionVoided`, ...). Balances and
 reports are **projections** — pure folds over that log.
 
-This makes multi-device merge tractable: synchronisation is a merge-sort of two
-append-only event streams, de-duplicated by event id and ordered by a
-[Hybrid Logical Clock](https://cse.buffalo.edu/tech-reports/2014-04.pdf). There
-are no destructive updates to reconcile. Genuine business-rule conflicts (an
-account closed on one device, used on another) are resolved with explicit
-**compensating events** rather than by overwriting state.
+This makes multi-device merge tractable: syncing is push-then-pull against a
+server, de-duplicated by event id, with each direction cursored by the
+sending side's own gapless sequence number — not by comparing
+[Hybrid Logical Clock](https://cse.buffalo.edu/tech-reports/2014-04.pdf)
+timestamps across devices, which turns out to be the wrong tool for that job
+(see `SyncService`'s doc comment: a scalar HLC cursor can permanently miss an
+event that ties it on `(wallMillis, counter)` but sorts earlier by `nodeId` —
+a real gap, pinned down by a test, not a hypothetical). The HLC still does
+the job it's good at: giving every event a causal timestamp that's consistent
+across devices, useful anywhere ordering-by-when-it-causally-happened matters
+(a future conflict-review UI, audit views). There are no destructive updates
+to reconcile — merges are pure appends. Genuine business-rule conflicts (an
+account closed on one device, used on another) will be resolved with explicit
+**compensating events** rather than by overwriting state, once there's a
+domain that can have that kind of conflict.
 
 ## Architecture
 
@@ -42,8 +51,18 @@ domain        ── aggregates, domain events, invariants (pure Dart)
 data          ── Drift event store, projection tables, sync client
 ```
 
+- **Sync:** `SyncService` pushes this device's new events to the server, then
+  pulls the server's new events back, cursored by plain sequence numbers on
+  each side (see "Why event sourcing" above). Today it runs against
+  `FakeSyncTransport`, an in-process stand-in that still serialises every
+  event to JSON and back through `EventCodec` — the same codepath a real
+  HTTP transport would use — so tests catch a forgotten event registration
+  the same way a real deployment would.
+
 - **Write path:** `Command` → aggregate rehydrated from its events → invariants
-  checked → new events appended to the log and the outbox.
+  checked → new events appended to the log. There's no separate outbox table:
+  the log plus `SyncService`'s own "last pushed" cursor already *is* the
+  outbox — `readAll(afterSequence: cursor)` is "what hasn't been sent yet".
 - **Read path (partly built):** the event log itself is persisted in SQLite via
   Drift (`DriftEventStore`, tested against the same behavioural contract as
   the in-memory store used elsewhere in tests). Projection *tables* — the
@@ -71,9 +90,18 @@ commit history for the exact sequence.
 - ✅ `EventStore` — an `InMemoryEventStore` and a Drift/SQLite-backed
   `DriftEventStore`, both verified against one shared behavioural contract
   (`test/eventsourcing/event_store_contract.dart`)
-- ⏳ `sync/` — HLC-based merge between devices (not started)
+- ✅ `sync/` — `SyncService` push/pull against a `SyncTransport`
+  (`FakeSyncTransport` today; a real one would speak HTTP to the .NET sync
+  server), cursor persistence, retry-safe on transport failure, verified
+  with a multi-device convergence test. Deliberately uses a `sequence`
+  cursor rather than `readSince`'s `Hlc` cursor — see `SyncService`'s doc
+  comment for why.
+- ⏳ Persisted (Drift-backed) `SyncCursorStore` — today's `SyncCursorStore`
+  is in-memory only; cursors don't survive an app restart yet
 - ⏳ `accounts` / `transactions` / `reports` features
 - ⏳ Presentation layer (Riverpod providers, pages)
+- ⏳ Isolate-offloaded projection rebuild and sync-batch validation (see
+  [docs/concurrency.md](docs/concurrency.md) — designed, not wired up)
 
 ## Running
 

@@ -26,3 +26,10 @@ linter:
     # `.new(...)` shorthand — it stays legible to readers not yet fluent in
     # the newest syntax.
     unnecessary_type_name_in_constructor: false
+    # Named constructor parameters read better with a plain descriptive name
+    # (`localStore:`) than an underscore-prefixed one, but named parameters
+    # can't be private in Dart — so a field that should stay private (most
+    # of them) can't be assigned via an initializing formal. Applies
+    # consistently across this codebase; see e.g. HybridLogicalClock and
+    # SyncService.
+    prefer_initializing_formals: false

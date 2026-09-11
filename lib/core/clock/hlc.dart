@@ -108,9 +108,6 @@ class HybridLogicalClock {
     Hlc? initial,
     this.maxDriftMillis = _defaultMaxDriftMillis,
     this.maxCounter = _defaultMaxCounter,
-    // Named parameters cannot be private, so this cannot be an initializing
-    // formal; the field stays private on purpose.
-    // ignore: prefer_initializing_formals
   }) : _physicalTimeMillis = physicalTimeMillis,
        _last = initial ?? Hlc(wallMillis: 0, counter: 0, nodeId: nodeId) {
     if (initial != null && initial.nodeId != nodeId) {
