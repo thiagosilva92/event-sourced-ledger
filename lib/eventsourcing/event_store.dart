@@ -57,8 +57,22 @@ abstract interface class EventStore {
   /// [afterSequence]. Used to (re)build projections.
   Future<List<SequencedEvent>> readAll({int afterSequence = 0});
 
-  /// Events with an HLC timestamp strictly greater than [since], ordered by
+  /// Events with an HLC timestamp at or after [since] (inclusive), ordered by
   /// HLC then eventId, capped at [limit]. Used by the sync push/pull cursor.
+  ///
+  /// The boundary is inclusive on purpose: if a caller re-requests with
+  /// exactly the timestamp of the last event it saw, that event comes back
+  /// once more instead of being skipped. That resend is harmless — [merge]
+  /// de-duplicates by [DomainEvent.eventId].
+  ///
+  /// This does **not** fully solve missed events under concurrent writers.
+  /// [Hlc] gives a total order via a `nodeId` tie-break, so an event created
+  /// independently on another node can compare as *earlier* than a cursor it
+  /// never influenced (same `wallMillis`/`counter`, smaller `nodeId`) and
+  /// still be excluded — see the "characterization" test next to this
+  /// method's tests. A single scalar cursor cannot fix that; it needs a
+  /// per-origin-node cursor (or vector), which belongs in `sync/`, built on
+  /// top of this method — not here.
   Future<List<DomainEvent>> readSince(Hlc? since, {int limit = 500});
 
   /// Highest sequence number handed out so far (0 when empty).
@@ -138,7 +152,9 @@ class InMemoryEventStore implements EventStore {
     final events =
         _log.map((s) => s.event).where((e) {
           if (since == null) return true;
-          return e.timestamp > since;
+          // Inclusive: see the doc comment on EventStore.readSince for why
+          // `>=` (not `>`) is required for correctness here.
+          return e.timestamp >= since;
         }).toList()..sort((a, b) {
           final byClock = a.timestamp.compareTo(b.timestamp);
           return byClock != 0 ? byClock : a.eventId.compareTo(b.eventId);

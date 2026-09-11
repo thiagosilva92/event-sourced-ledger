@@ -38,7 +38,7 @@ final class Hlc implements Comparable<Hlc> {
     : this(wallMillis: 0, counter: 0, nodeId: nodeId);
 
   /// Parses the canonical `wallMillis-counter-nodeId` form produced by
-  /// [toString], e.g. `1694300000000-0003-device-a`.
+  /// [toString], e.g. `1694300000000-00003-device-a`.
   factory Hlc.parse(String value) {
     final firstDash = value.indexOf('-');
     final secondDash = value.indexOf('-', firstDash + 1);
@@ -73,11 +73,17 @@ final class Hlc implements Comparable<Hlc> {
   bool operator >(Hlc other) => compareTo(other) > 0;
   bool operator >=(Hlc other) => compareTo(other) >= 0;
 
-  /// Canonical, lexicographically-sortable-per-node string form. The counter
-  /// is zero-padded so string sort matches numeric sort for a fixed node.
+  /// Canonical, parseable string form: `wallMillis-counter-nodeId`.
+  ///
+  /// This is for storage, logs and transport — always order [Hlc] values
+  /// with [compareTo] or the relational operators, never by sorting this
+  /// string. The counter is zero-padded to 5 digits for readability only;
+  /// it does not by itself guarantee lexical order matches [compareTo]
+  /// order (`wallMillis` isn't fixed-width, and a wider `maxCounter` than
+  /// [HybridLogicalClock]'s default would overflow the padding).
   @override
   String toString() =>
-      '$wallMillis-${counter.toString().padLeft(4, '0')}-$nodeId';
+      '$wallMillis-${counter.toString().padLeft(5, '0')}-$nodeId';
 
   @override
   bool operator ==(Object other) =>

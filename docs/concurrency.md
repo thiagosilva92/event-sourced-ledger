@@ -5,7 +5,7 @@ Dart is single-threaded per isolate. There is no shared-memory threading and no
 interleaves work on one event loop.
 
 For CPU-bound work (folding a long event log into projections, verifying a large
-batch of events during sync) this app uses **isolates**:
+batch of events during sync) this app's design uses **isolates**:
 
 - an isolate has its own memory heap; nothing is shared;
 - isolates communicate by copying messages over ports (`SendPort`/`ReceivePort`),
@@ -15,11 +15,11 @@ batch of events during sync) this app uses **isolates**:
 
 ### Where isolates are used
 
-| Work | Mechanism | Why off the main isolate |
-| --- | --- | --- |
-| Rebuild all projections from scratch | long-lived worker isolate | folding thousands of events would drop frames |
-| Validate + order an incoming sync batch | `Isolate.run` | keeps the UI responsive during sync |
-| Single command handling | main isolate | cheap; rehydration is snapshot-bounded |
+| Work | Mechanism | Why off the main isolate | Status |
+| --- | --- | --- | --- |
+| Rebuild all projections from scratch | long-lived worker isolate | folding thousands of events would drop frames | planned — `ProjectionRunner.rebuild()` currently runs on the caller's isolate |
+| Validate + order an incoming sync batch | `Isolate.run` | keeps the UI responsive during sync | planned — `sync/` not built yet |
+| Single command handling | main isolate | cheap; rehydration is snapshot-bounded | current behaviour |
 
 ### Note on "virtual threads"
 

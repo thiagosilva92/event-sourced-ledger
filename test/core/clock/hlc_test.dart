@@ -23,7 +23,7 @@ void main() {
 
     test('toString / parse round-trip', () {
       const ts = Hlc(wallMillis: 1694300000000, counter: 3, nodeId: 'device-a');
-      expect(ts.toString(), '1694300000000-0003-device-a');
+      expect(ts.toString(), '1694300000000-00003-device-a');
       expect(Hlc.parse(ts.toString()), ts);
     });
 

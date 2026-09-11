@@ -45,10 +45,12 @@ data          ── Drift event store, projection tables, sync client
   as reactive streams. The write model and read model never share types.
 - **Money** is an integer-minor-unit value object with an explicit currency —
   never `double`. Double-entry transactions must balance to zero.
-- **Concurrency:** rebuilding projections from a long event log runs in a
-  dedicated `Isolate` so the UI thread never blocks. (Dart has no threads shared
-  memory model — isolates communicate by message passing; see
-  [docs/concurrency.md](docs/concurrency.md).)
+- **Concurrency (planned):** rebuilding projections from a long event log will
+  run in a dedicated `Isolate` so the UI thread never blocks — Dart has no
+  shared-memory threads; isolates communicate by message passing. Not wired up
+  yet: `ProjectionRunner` currently folds on the caller's isolate. See
+  [docs/concurrency.md](docs/concurrency.md) for the design and why isolates
+  are the answer to "virtual threads" here.
 
 ## Status
 

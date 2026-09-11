@@ -22,8 +22,8 @@ base class TallyStarted extends DomainEvent {
 }
 
 base class TallyIncremented extends DomainEvent {
-  TallyIncremented({required super.aggregateId, required this.by})
-    : super(eventId: _id(), timestamp: _ts());
+  TallyIncremented({required super.aggregateId, required this.by, Hlc? at})
+    : super(eventId: _id(), timestamp: at ?? _ts());
 
   final int by;
 
@@ -204,7 +204,7 @@ void main() {
       expect(tail.map((s) => s.sequence), [2, 3]);
     });
 
-    test('readSince filters and orders by HLC', () async {
+    test('readSince is inclusive of the cursor and orders by HLC', () async {
       final t = Tally('t1')
         ..start('x')
         ..add(1)
@@ -214,9 +214,56 @@ void main() {
 
       final since = events.first.timestamp;
       final result = await store.readSince(since);
-      expect(result, hasLength(2));
-      expect(result.first.timestamp > since, isTrue);
+
+      // Inclusive: the event at the cursor comes back too. Harmless — the
+      // receiving side's merge() de-duplicates by eventId.
+      expect(result, hasLength(3));
+      expect(result.first.timestamp, since);
+      expect(result[1].timestamp > since, isTrue);
     });
+
+    test(
+      'characterization: a scalar cursor can still miss an event that ties '
+      'it on wallMillis/counter but sorts before it by nodeId — this is why '
+      'sync/ must track per-node cursors, not just call readSince inclusive',
+      () async {
+        // Two devices, never in contact, independently reach the same
+        // (wallMillis, counter) pair. Hlc's total order then falls back to
+        // nodeId, which is arbitrary with respect to "was this seen before".
+        // The inclusive `>=` fix (see the test above) only covers the exact
+        // boundary event; it cannot rescue this case, because
+        // neverSyncedTimestamp is genuinely less than cursorTimestamp.
+        const cursorTimestamp = Hlc(
+          wallMillis: 5000,
+          counter: 2,
+          nodeId: 'zzz-already-synced-device',
+        );
+        const neverSyncedTimestamp = Hlc(
+          wallMillis: 5000,
+          counter: 2,
+          nodeId: 'aaa-new-device', // sorts before 'zzz...' at the same tick
+        );
+        expect(neverSyncedTimestamp < cursorTimestamp, isTrue); // the trap
+
+        final neverSyncedEvent = TallyIncremented(
+          aggregateId: 't1',
+          by: 2,
+          at: neverSyncedTimestamp,
+        );
+        await store.merge([
+          TallyIncremented(aggregateId: 't1', by: 1, at: cursorTimestamp),
+          neverSyncedEvent,
+        ]);
+
+        final result = await store.readSince(cursorTimestamp);
+
+        // Documents the known gap — see EventStore.readSince's doc comment.
+        expect(
+          result.map((e) => e.eventId),
+          isNot(contains(neverSyncedEvent.eventId)),
+        );
+      },
+    );
 
     test('changes stream emits on append and merge', () async {
       final seen = <String>[];
