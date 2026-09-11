@@ -12,9 +12,9 @@ import '../eventsourcing/support/tally_fixture.dart';
 /// This runs against an in-memory SQLite connection, same as every other
 /// Drift test in this repo, so numbers here are about the store's own
 /// logic (batching, transactions, indexing), not disk I/O — a real device
-/// will be slower. `lib/main_debug_smoke_test.dart` is what proves the
-/// real on-disk path works at all; this is what proves it holds up at
-/// scale once it does.
+/// will be slower. The app itself running on physical hardware is what
+/// proves the real on-disk path works at all; this is what proves it holds
+/// up at scale once it does.
 ///
 /// Time budgets are intentionally generous for a shared CI runner. The
 /// point of printing the actual duration alongside every assertion is to

@@ -94,9 +94,38 @@ evidence.
 | Architecture / layering | `test/architecture/layering_test.dart` | the dependency rules this README claims (domain stays pure Dart, nothing depends "upward") actually hold, checked by scanning every `import` in `lib/` — not just asserted in prose |
 | Load / stress | `test/performance/` | thousands of events, a 10,000-event offline-sync backlog absorbed in one call, 50 concurrent writers with no lost or interleaved data — of the **local embedded database**, since that's what this app has |
 | Concurrency proof | `test/performance/projection_rebuild_load_test.dart` | isolate-offloaded decode genuinely stops blocking the caller — measured with a concurrent heartbeat timer, not inferred from a smaller wall-clock number |
-| Device smoke test | `lib/main_debug_smoke_test.dart` | the production database path (real file, real native SQLite, real background isolate) actually works on physical Android hardware, not just in a test sandbox |
+| Real device | the app itself, run on physical Android hardware | not a `test/` file — running the real app is what caught a bug nothing else here could: an earlier standalone tool that exercised the production database path wrote its own throwaway events into the *same* on-device database the real app reads, and the app's event registry (correctly) didn't know how to decode them. See the note below. |
 | Performance benchmark | `test/performance/benchmark_test.dart`, `test/performance/benchmarks/` | steady-state cost of the operations that matter (`Money.allocate`, `Hlc.now`/`.receive`, `DriftEventStore.append`/`merge`/`readAll`), measured with `package:benchmark_harness` (warm-up + a timed exercise window) rather than a single `Stopwatch` reading, and compared against a committed baseline every run |
 | Schema migration | `test/core/database/app_database_migration_test.dart` | upgrading a real pre-existing database (built by hand at schema v1) adds the new table and keeps existing data intact — the one path every other test skips by always starting from a fresh database at the current version |
+
+### A bug only a real device could have caught
+
+Before the presentation layer existed, `lib/main_debug_smoke_test.dart` (a
+separate Flutter entry point) was how the production `AppDatabase()` path —
+real file via `path_provider`, real native SQLite, real background isolate —
+got verified on physical hardware. It worked; see the commit history. Its own
+doc comment said to delete it once a real screen existed to do that job
+instead, "since it would stop being the only thing touching `AppDatabase()`
+on-device."
+
+That turned out to be exactly right, and for a reason worth writing down: the
+first time the *real* app ran on the same physical device afterward, it threw
+`UnknownEventTypeError: no deserializer registered for
+"debug.smoke_test_pinged"` on startup. Both entry points open the same
+on-device database file (same app id, same install) — the debug tool's
+throwaway events were still sitting in the event log, and the real app's
+event registry (`buildLedgerEventRegistry`) correctly has no idea what a
+`debug.smoke_test_pinged` event is. Nothing in `test/` could have caught
+this: every test opens a fresh database. Only running the actual app on the
+actual device, after the debug tool had already written to it, surfaced it.
+
+Fixed by clearing the device's app data and removing the debug tool now that
+its replacement exists — not by teaching the registry to ignore unknown
+events, which would have hidden a real problem (a genuinely corrupt or
+newer-than-this-build event) behind the same code path. The lesson that's
+staying in the design: a throwaway tool and the real app should never share
+a database, and now they structurally can't — there's only one thing left
+that opens `AppDatabase()` on-device.
 
 ### Benchmarks: what the regression check does and doesn't guarantee
 
@@ -167,10 +196,10 @@ commit history for the exact sequence.
   with a multi-device convergence test. Deliberately uses a `sequence`
   cursor rather than `readSince`'s `Hlc` cursor — see `SyncService`'s doc
   comment for why.
-- ✅ Isolate-offloaded decode for large event-log reads, with a real device
-  smoke test (`lib/main_debug_smoke_test.dart`) and a test that proves the
-  calling isolate stays responsive during it, not just a smaller number —
-  see [docs/concurrency.md](docs/concurrency.md)
+- ✅ Isolate-offloaded decode for large event-log reads, confirmed on real
+  device hardware and a test that proves the calling isolate stays
+  responsive during it, not just a smaller number — see
+  [docs/concurrency.md](docs/concurrency.md)
 - ✅ Automated architecture/layering checks (`test/architecture/`) — a real
   regression test, not just a diagram. Writing the "domain stays pure Dart"
   rule surfaced that `DriftEventStore` (imports Drift) had been living
@@ -235,15 +264,6 @@ flutter run
 
 Requires Flutter 3.47+ / Dart 3.13+.
 
-### Verifying the database on a real device
-
-There's no real UI yet, so `flutter run` just shows a placeholder. To check
-that the production database path (a real file via `path_provider`, native
-SQLite, a background isolate) actually works on physical hardware:
-
-```bash
-flutter run -t lib/main_debug_smoke_test.dart -d <device>
-```
-
-Confirmed working on Android 16 / arm64. This is temporary — see the doc
-comment on `DbSmokeTestScreen` for when to delete it.
+`flutter run -d <device>` now runs the real app — confirmed on Android 16 /
+arm64. See "A bug only a real device could have caught" above for why there
+used to be a separate command for this.
