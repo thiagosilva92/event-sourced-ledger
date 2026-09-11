@@ -108,6 +108,38 @@ void main() {
   );
 
   testWidgets(
+    'the form scrolls instead of overflowing once the keyboard covers half '
+    'the screen',
+    (tester) async {
+      // Reproduces a bug found on real hardware, not by any test: five
+      // fields plus a button don't fit in what's left of a phone screen
+      // once the on-screen keyboard is up, and a plain `Column` doesn't
+      // scroll on its own. Every other test in this file pumps at the
+      // default (large) test viewport, which is exactly why none of them
+      // caught it — nothing here shrinks the viewport the way a real
+      // keyboard does.
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetViewInsets);
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1.0;
+
+      await openAccount('groceries', 'Groceries', Currency.usd);
+      await openAccount('wallet', 'Wallet', Currency.usd);
+      await pump(tester);
+
+      await goToRecordTransactionPage(tester);
+
+      // Simulate the keyboard covering roughly half the screen, the way it
+      // does the moment a text field is focused on a real phone.
+      tester.view.viewInsets = const FakeViewPadding(bottom: 400);
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
     'recording a transaction updates both balances and returns to the list',
     (tester) async {
       await openAccount('groceries', 'Groceries', Currency.usd);

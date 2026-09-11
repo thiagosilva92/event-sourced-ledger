@@ -127,7 +127,14 @@ class _RecordTransactionPageState extends ConsumerState<RecordTransactionPage> {
 
     return Form(
       key: _formKey,
-      child: Padding(
+      // A plain `Padding` + `Column` here overflows the moment the keyboard
+      // opens on a real phone: five fields plus a button don't fit in the
+      // space left once the keyboard takes the bottom half of the screen,
+      // and `Column` doesn't scroll on its own. Wrapping in
+      // `SingleChildScrollView` is what makes the fields below the keyboard
+      // reachable instead of clipped. No widget test caught this — the test
+      // viewport never shrinks for a keyboard the way a real device's does.
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,

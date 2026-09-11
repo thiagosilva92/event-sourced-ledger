@@ -150,6 +150,29 @@ instance of it per app instance (`late final GoRouter _router` in a
 problem for two real `LedgerApp` instances ever existing in the same
 process, not just for tests.
 
+### A bug only a phone's own keyboard could have caught
+
+`RecordTransactionPage`'s form — two dropdowns, an amount field, a
+description field, a date picker, a button — fit comfortably in a widget
+test's default viewport and on a phone screen with no keyboard up. The
+first time a real finger tapped the amount field on the physical Xiaomi,
+the on-screen keyboard took roughly the bottom half of the screen and
+Flutter logged `A RenderFlex overflowed by 36 pixels on the bottom`: a
+plain `Column` inside a `Padding` doesn't scroll, so the fields below
+whatever was focused had nowhere to go.
+
+Fixed by wrapping the form in a `SingleChildScrollView`. The regression
+test for it (`record_transaction_flow_test.dart`) doesn't need a real
+keyboard to catch this again — `tester.view.viewInsets =
+FakeViewPadding(bottom: 400)` simulates exactly the "half the screen is
+gone" layout constraint a keyboard imposes, at the exact viewport size
+where the real bug reproduced. Deliberately checked *before* trusting the
+fix: reverting the `SingleChildScrollView` change and re-running that one
+test reproduced the same class of error
+(`RenderFlex overflowed by 120 pixels`, different number because of the
+test's viewport size, same shape of bug) — the test was written to fail
+first, the same discipline every other test in this repo follows.
+
 ### Benchmarks: what the regression check does and doesn't guarantee
 
 `test/performance/benchmark_test.dart` runs every benchmark, prints the
@@ -247,7 +270,9 @@ commit history for the exact sequence.
   verified by a widget test that opens two accounts in different
   currencies and checks the mismatched one is never offered. Reached from
   the accounts list via an app bar action, not a second
-  `FloatingActionButton` (Scaffold only supports one).
+  `FloatingActionButton` (Scaffold only supports one). Manually verified on
+  the physical Xiaomi device, which is what surfaced a real keyboard-overflow
+  bug — see "A bug only a phone's own keyboard could have caught" below.
 - ⏳ Device node id regenerates on every launch instead of being persisted —
   harmless until sync is actually wired into the UI, since each launch is
   still internally consistent
