@@ -16,7 +16,16 @@ class AccountsListPage extends ConsumerWidget {
     final summaries = ref.watch(accountSummariesProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Accounts')),
+      appBar: AppBar(
+        title: const Text('Accounts'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.swap_horiz),
+            tooltip: 'Record transaction',
+            onPressed: () => context.push('/transactions/record'),
+          ),
+        ],
+      ),
       body: summaries.isEmpty
           ? const _EmptyState()
           : ListView.separated(

@@ -127,6 +127,29 @@ staying in the design: a throwaway tool and the real app should never share
 a database, and now they structurally can't — there's only one thing left
 that opens `AppDatabase()` on-device.
 
+### A bug only a second widget test file could have caught
+
+`buildAppRouter()` used to be `final GoRouter appRouter = GoRouter(...)` — a
+module-level singleton, built once, that `LedgerApp` just referenced.
+Every widget test up to this point pumped `LedgerApp` once per test and
+happened to only ever assert on the screen it had just navigated *to* — so
+nothing noticed that `GoRouter` carries its own navigation stack as mutable
+internal state, and a shared singleton means that state persists for the
+lifetime of the test *process*, not the test.
+
+The new transaction-recording widget tests (`record_transaction_flow_test.dart`)
+were the first in this repo to run several `testWidgets` in one file that
+each navigate away from `/` and never navigate back before the test ends.
+Every test after the first one in that file started on whatever screen the
+previous test had last pushed — not `/` — and failed looking for a widget
+that was never going to be on screen, for a reason that had nothing to do
+with the transaction form itself. Fixed by making the router a function,
+`buildAppRouter()`, and having `LedgerApp` build and keep exactly one
+instance of it per app instance (`late final GoRouter _router` in a
+`State`, not a top-level `final`) — which also fixes the same latent
+problem for two real `LedgerApp` instances ever existing in the same
+process, not just for tests.
+
 ### Benchmarks: what the regression check does and doesn't guarantee
 
 `test/performance/benchmark_test.dart` runs every benchmark, prints the
@@ -212,10 +235,19 @@ commit history for the exact sequence.
   doesn't guarantee
 - ⏳ Isolate offload for a large incoming sync batch — same idea, not
   applied there yet
-- ⏳ No transaction-recording screen yet — `RecordTransactionHandler` and
-  `AccountBalanceProjection` are fully built and tested (see below), but the
-  only UI so far is opening/closing accounts; entering a double-entry
-  transaction still has no form
+- ✅ `RecordTransactionPage` (`features/transactions/presentation/`) — a
+  form over `RecordTransactionHandler`, shaped as the simplest case
+  double-entry actually needs day to day: money moves from one open account
+  to another, i.e. exactly two legs (`-amount` / `+amount`). The domain
+  layer already supports splitting one amount across more legs than that
+  (`Leg`, `LedgerTransaction`) — only this MVP screen's UI doesn't yet. The
+  "to" dropdown is filtered to accounts sharing the "from" account's
+  currency, so the form can't be submitted into a failure
+  `LedgerTransaction.record` would just reject anyway (`InvalidLegs`) —
+  verified by a widget test that opens two accounts in different
+  currencies and checks the mismatched one is never offered. Reached from
+  the accounts list via an app bar action, not a second
+  `FloatingActionButton` (Scaffold only supports one).
 - ⏳ Device node id regenerates on every launch instead of being persisted —
   harmless until sync is actually wired into the UI, since each launch is
   still internally consistent
