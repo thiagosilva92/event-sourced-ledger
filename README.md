@@ -59,9 +59,9 @@ Work in progress. See commit history for the build order: foundations
 
 ```bash
 flutter pub get
-dart run build_runner build --delete-conflicting-outputs
+dart run build_runner build
 flutter test
 flutter run
 ```
 
-Requires Flutter 3.38+ / Dart 3.10+.
+Requires Flutter 3.47+ / Dart 3.13+.

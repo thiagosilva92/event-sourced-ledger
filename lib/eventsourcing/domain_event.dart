@@ -43,8 +43,10 @@ abstract base class DomainEvent {
 }
 
 /// Rebuilds a [DomainEvent] from its persisted form.
-typedef EventDeserializer =
-    DomainEvent Function(EventMetadata metadata, Map<String, Object?> payload);
+typedef EventDeserializer = DomainEvent Function(
+  EventMetadata metadata,
+  Map<String, Object?> payload,
+);
 
 /// Metadata common to every persisted event, separated from the payload.
 @immutable

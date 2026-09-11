@@ -103,9 +103,7 @@ class InMemoryEventStore implements EventStore {
         );
       }
     }
-    for (final event in events) {
-      _appendOne(event);
-    }
+    events.forEach(_appendOne);
   }
 
   @override

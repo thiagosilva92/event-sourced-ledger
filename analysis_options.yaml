@@ -4,6 +4,9 @@ analyzer:
   exclude:
     - "**/*.g.dart"
     - "**/*.drift.dart"
+    - build/**
+    - android/**
+    - ios/**
   language:
     strict-casts: true
     strict-inference: true
@@ -19,3 +22,7 @@ linter:
     # Sequential calls to the same object read fine as statements, especially
     # in arrange/act/assert tests; forcing cascades hurts readability here.
     cascade_invocations: false
+    # Prefer the explicit `ClassName(...)` constructor form over the Dart 3.13
+    # `.new(...)` shorthand — it stays legible to readers not yet fluent in
+    # the newest syntax.
+    unnecessary_type_name_in_constructor: false
