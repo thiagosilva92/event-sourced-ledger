@@ -41,8 +41,12 @@ data          ── Drift event store, projection tables, sync client
 
 - **Write path:** `Command` → aggregate rehydrated from its events → invariants
   checked → new events appended to the log and the outbox.
-- **Read path:** projections materialised into Drift tables, exposed to the UI
-  as reactive streams. The write model and read model never share types.
+- **Read path (partly built):** the event log itself is persisted in SQLite via
+  Drift (`DriftEventStore`, tested against the same behavioural contract as
+  the in-memory store used elsewhere in tests). Projection *tables* — the
+  materialised, query-ready read models the UI will actually watch — aren't
+  built yet; today `ProjectionRunner` folds the log into in-memory state. The
+  write model and read model will never share types.
 - **Money** is an integer-minor-unit value object with an explicit currency —
   never `double`. Double-entry transactions must balance to zero.
 - **Concurrency (planned):** rebuilding projections from a long event log will
@@ -54,8 +58,19 @@ data          ── Drift event store, projection tables, sync client
 
 ## Status
 
-Work in progress. See commit history for the build order: foundations
-(`Money`, Hybrid Logical Clock, event store) first, then features.
+Work in progress; built in dependency order, foundations first. See the
+commit history for the exact sequence.
+
+- ✅ `Money` / `Currency` — exact arithmetic, largest-remainder allocation
+- ✅ Hybrid Logical Clock — causal ordering across devices
+- ✅ Event-sourcing core — `DomainEvent`, `EventRegistry`, `Aggregate`,
+  `Projection` / `ProjectionRunner`
+- ✅ `EventStore` — an `InMemoryEventStore` and a Drift/SQLite-backed
+  `DriftEventStore`, both verified against one shared behavioural contract
+  (`test/eventsourcing/event_store_contract.dart`)
+- ⏳ `sync/` — HLC-based merge between devices (not started)
+- ⏳ `accounts` / `transactions` / `reports` features
+- ⏳ Presentation layer (Riverpod providers, pages)
 
 ## Running
 
