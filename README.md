@@ -226,8 +226,17 @@ actually calls for, not on every PR iteration.
 
 ## Status
 
-Work in progress; built in dependency order, foundations first. See the
-commit history for the exact sequence.
+**Feature-complete for what this repo sets out to prove**: event sourcing,
+CQRS, and multi-device sync architecture, built in dependency order from a
+pure-Dart domain layer up through a working Flutter UI — verified on
+physical Android hardware, not just in `flutter test`. Every gap this
+README has ever flagged with a ⏳ has since been closed; the checklist
+below is now all ✅, in the order it was actually built (see the commit
+history for the exact sequence). What isn't here is either listed above
+under "What's deliberately not here," with a stated reason, or belongs to
+a separate, explicitly out-of-scope repo — a real HTTP `SyncTransport`
+talking to a .NET sync server, which `FakeSyncTransport` stands in for
+today.
 
 - ✅ `Money` / `Currency` — exact arithmetic, largest-remainder allocation
 - ✅ Hybrid Logical Clock — causal ordering across devices
@@ -353,7 +362,13 @@ commit history for the exact sequence.
     is what confirmed the debug-tool bug below was actually gone, not just
     theoretically fixed.
   - 178/178 tests passing (unit, contract, architecture, load, benchmark,
-    migration, widget), locally and in CI.
+    migration, widget), locally and in CI — see the current total below;
+    three more milestones (isolate offload for sync, the transaction
+    screen, and the persisted device id) landed after this one.
+
+**Current totals**: 193/193 tests passing, `flutter analyze` clean, CI
+green on every push to `main` — see the badge at the top of this file for
+live status.
 
 ## Running
 
