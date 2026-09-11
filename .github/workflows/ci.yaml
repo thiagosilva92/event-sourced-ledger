@@ -31,7 +31,12 @@ jobs:
         run: flutter analyze
 
       - name: Run tests
-        run: flutter test --coverage
+        # Benchmarks (@Tags(['benchmark'])) are excluded here — each one
+        # runs a deliberate ~2s warm-up + exercise window by design (see
+        # test/performance/benchmark_test.dart), which is real signal for a
+        # benchmark and just latency on every PR. The `benchmark` job below
+        # runs them, only on pushes to main.
+        run: flutter test --coverage --exclude-tags=benchmark
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
@@ -47,3 +52,28 @@ jobs:
           # Don't fail the build over Codecov itself — e.g. before the repo
           # is connected on codecov.io / before CODECOV_TOKEN is set.
           fail_ci_if_error: false
+
+  benchmark:
+    # Only on pushes that land on main — a merged PR, i.e. code about to
+    # ship — not on every PR push. Benchmarks are a warn-only regression
+    # check (see test/performance/benchmark_test.dart), not a merge gate,
+    # so there is no value in paying their ~20s on every PR iteration.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.3'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate code
+        run: dart run build_runner build
+
+      - name: Run benchmarks
+        run: flutter test --tags=benchmark --reporter expanded

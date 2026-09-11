@@ -117,6 +117,20 @@ moved:
 UPDATE_BENCHMARK_BASELINE=1 flutter test test/performance/benchmark_test.dart
 ```
 
+Each benchmark's warm-up + exercise window costs a deliberate ~2 seconds —
+that's the methodology, not overhead to shave off, so `benchmark_test.dart`
+is tagged `@Tags(['benchmark'])` and kept out of the fast path instead:
+
+```bash
+flutter test --exclude-tags=benchmark   # what CI runs on every push/PR
+flutter test --tags=benchmark           # just the benchmarks, ~20s
+```
+
+CI mirrors that split: the main job excludes benchmarks so PR feedback
+stays fast; a separate `benchmark` job runs them only on pushes to `main`
+— i.e. right when code is about to ship, which is what "before production"
+actually calls for, not on every PR iteration.
+
 ### What's deliberately not here
 
 - **Testcontainers** — the right tool for spinning up a real external
