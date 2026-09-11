@@ -3,11 +3,11 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger/core/database/app_database.dart';
-import 'package:ledger/eventsourcing/drift_event_store.dart';
+import 'package:ledger/core/database/drift_event_store.dart';
 import 'package:path/path.dart' as p;
 
-import 'event_store_contract.dart';
-import 'support/tally_fixture.dart';
+import '../../eventsourcing/event_store_contract.dart';
+import '../../eventsourcing/support/tally_fixture.dart';
 
 DriftEventStore _newStore() {
   final db = AppDatabase.forTesting(NativeDatabase.memory());

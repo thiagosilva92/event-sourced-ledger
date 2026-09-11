@@ -19,6 +19,12 @@ import 'package:ledger/eventsourcing/event_store.dart';
 /// `DomainEvent` objects: every read reconstructs them from stored JSON via
 /// [registry], so every event type used with this store must be registered
 /// there first.
+///
+/// Lives under `core/database/`, not `eventsourcing/`, on purpose: this is
+/// the Drift-specific *implementation* of the `EventStore` interface, and
+/// `eventsourcing/` is the pure-Dart domain layer — no Drift, no Flutter, no
+/// platform plugins. `test/architecture/layering_test.dart` checks that
+/// boundary automatically.
 class DriftEventStore implements EventStore {
   /// [registryFactory] builds a fresh [EventRegistry] with every event type
   /// this store needs to decode registered on it. It must be a **top-level

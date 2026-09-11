@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger/core/database/app_database.dart';
-import 'package:ledger/eventsourcing/drift_event_store.dart';
+import 'package:ledger/core/database/drift_event_store.dart';
 import 'package:ledger/eventsourcing/eventsourcing.dart';
 
 import '../eventsourcing/support/tally_fixture.dart';

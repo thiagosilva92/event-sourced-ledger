@@ -81,6 +81,37 @@ data          ── Drift event store, projection tables, sync client
   heartbeat timer that keeps ticking throughout), and why isolates are the
   answer to "virtual threads" here.
 
+## Testing strategy
+
+Different kinds of risk need different kinds of test. Each row below is a
+real, runnable thing in this repo — not a checklist item claimed without
+evidence.
+
+| Kind | Where | What it actually proves |
+| --- | --- | --- |
+| Unit / domain | `test/core/`, `test/eventsourcing/` | `Money` arithmetic, HLC ordering, aggregate rehydration, projection folding — pure logic, no I/O |
+| Contract | `test/eventsourcing/event_store_contract.dart` | `InMemoryEventStore` and `DriftEventStore` are truly interchangeable — one spec, run against both |
+| Architecture / layering | `test/architecture/layering_test.dart` | the dependency rules this README claims (domain stays pure Dart, nothing depends "upward") actually hold, checked by scanning every `import` in `lib/` — not just asserted in prose |
+| Load / stress | `test/performance/` | thousands of events, a 10,000-event offline-sync backlog absorbed in one call, 50 concurrent writers with no lost or interleaved data — of the **local embedded database**, since that's what this app has |
+| Concurrency proof | `test/performance/projection_rebuild_load_test.dart` | isolate-offloaded decode genuinely stops blocking the caller — measured with a concurrent heartbeat timer, not inferred from a smaller wall-clock number |
+| Device smoke test | `lib/main_debug_smoke_test.dart` | the production database path (real file, real native SQLite, real background isolate) actually works on physical Android hardware, not just in a test sandbox |
+
+### What's deliberately not here
+
+- **Testcontainers** — the right tool for spinning up a real external
+  service (Postgres, Kafka) in Docker for an integration test. This repo
+  has no external service: SQLite is embedded in-process, so
+  `DriftEventStore`'s tests already run against a real SQLite engine with
+  no container needed. Testcontainers is the right call for **the .NET
+  sync server** (a separate, planned repository) once it has integration
+  tests against a real Postgres/SQL Server — not here.
+- **A formal benchmark suite** (e.g. `package:benchmark_harness`, tracked
+  across commits with a regression threshold) — `test/performance/` prints
+  real numbers and gates on generous time budgets, which is enough to
+  decide "does this need an isolate" once, but isn't the same as a
+  benchmark dashboard that catches a 20% regression six months from now.
+  Would add real value; hasn't been built.
+
 ## Status
 
 Work in progress; built in dependency order, foundations first. See the
@@ -103,6 +134,12 @@ commit history for the exact sequence.
   smoke test (`lib/main_debug_smoke_test.dart`) and a test that proves the
   calling isolate stays responsive during it, not just a smaller number —
   see [docs/concurrency.md](docs/concurrency.md)
+- ✅ Automated architecture/layering checks (`test/architecture/`) — a real
+  regression test, not just a diagram. Writing the "domain stays pure Dart"
+  rule surfaced that `DriftEventStore` (imports Drift) had been living
+  under `eventsourcing/`, the pure-Dart zone; it moved to `core/database/`
+  before this test was added, with a dedicated rule pinning its location
+  so that specific mistake can't quietly come back
 - ⏳ Isolate offload for a large incoming sync batch — same idea, not
   applied there yet
 - ⏳ Persisted (Drift-backed) `SyncCursorStore` — today's `SyncCursorStore`

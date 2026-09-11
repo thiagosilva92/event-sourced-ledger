@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:ledger/core/clock/hlc.dart';
 import 'package:ledger/core/database/app_database.dart';
-import 'package:ledger/eventsourcing/drift_event_store.dart';
+import 'package:ledger/core/database/drift_event_store.dart';
 import 'package:ledger/eventsourcing/eventsourcing.dart';
 
 /// TEMPORARY — proves the production database path (real file on disk via
