@@ -56,4 +56,46 @@ void main() {
       throwsA(isA<UnknownEventTypeError>()),
     );
   });
+
+  group('decodeManyFromJson', () {
+    test(
+      'decodes a small batch (below the isolate threshold) correctly',
+      () async {
+        final events = List.generate(
+          10,
+          (i) => TallyIncremented.raised(aggregateId: 'agg-$i', by: i),
+        );
+        final onWire = events.map(codec.encodeToJson).toList();
+
+        final decoded = await EventCodec.decodeManyFromJson(
+          onWire,
+          buildTallyRegistry,
+        );
+
+        expect(decoded, hasLength(10));
+        expect(decoded, events); // DomainEvent.== compares by eventId
+      },
+    );
+
+    test('decodes a large batch (above the isolate threshold, on a worker '
+        'isolate) with the same result as decoding inline', () async {
+      final events = List.generate(
+        600, // above EventCodec's isolate threshold (500)
+        (i) => TallyIncremented.raised(aggregateId: 'agg-${i % 20}', by: i),
+      );
+      final onWire = events.map(codec.encodeToJson).toList();
+
+      final decoded = await EventCodec.decodeManyFromJson(
+        onWire,
+        buildTallyRegistry,
+      );
+
+      expect(decoded, hasLength(600));
+      expect(decoded, events);
+      expect(
+        decoded.map((e) => (e as TallyIncremented).by),
+        events.map((e) => e.by),
+      );
+    });
+  });
 }

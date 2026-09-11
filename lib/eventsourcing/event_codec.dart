@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:isolate';
 
 import 'package:ledger/core/clock/hlc.dart';
 import 'package:ledger/eventsourcing/domain_event.dart';
@@ -43,4 +44,43 @@ class EventCodec {
   /// The inverse of [encodeToJson].
   DomainEvent decodeFromJson(String json) =>
       decode((jsonDecode(json) as Map).cast<String, Object?>());
+
+  /// Below this many payloads, decoding inline is faster than the fixed
+  /// cost of spawning a worker isolate (a few ms) — the same threshold, for
+  /// the same reason, as `DriftEventStore._isolateDecodeThreshold`: JSON
+  /// decode plus registry dispatch is the same shape of work in both
+  /// places, just fed by a sync pull's incoming batch here instead of a
+  /// database read there.
+  static const _isolateDecodeThreshold = 500;
+
+  /// Decodes a batch of wire strings (as produced by [encodeToJson]),
+  /// offloading to a worker isolate once the batch is large enough to make
+  /// that worthwhile — mirrors `DriftEventStore._decodeInWorkerIsolate` for
+  /// exactly the same reason: a `SyncTransport.pull()` that decodes a large
+  /// incoming batch synchronously blocks whatever isolate is driving the
+  /// UI for as long as that decode takes, sync running in the background
+  /// or not.
+  ///
+  /// [registryFactory] must be a **top-level or static function**, not a
+  /// method tear-off or a closure capturing anything — see
+  /// `DriftEventStore`'s constructor doc comment for the full reasoning.
+  /// It's called once here for small batches, and again inside the worker
+  /// isolate for large ones; either way, the [EventCodec] this method
+  /// itself was called on is never the one used to decode — only
+  /// [registryFactory] and [jsonPayloads] cross the isolate boundary, both
+  /// plain data.
+  static Future<List<DomainEvent>> decodeManyFromJson(
+    List<String> jsonPayloads,
+    EventRegistry Function() registryFactory,
+  ) async {
+    if (jsonPayloads.length < _isolateDecodeThreshold) {
+      final codec = EventCodec(registryFactory());
+      return jsonPayloads.map(codec.decodeFromJson).toList();
+    }
+    final decoded = await Isolate.run(() {
+      final codec = EventCodec(registryFactory());
+      return jsonPayloads.map(codec.decodeFromJson).toList();
+    });
+    return decoded;
+  }
 }

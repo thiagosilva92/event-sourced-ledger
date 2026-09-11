@@ -10,10 +10,7 @@ import '../eventsourcing/support/tally_fixture.dart';
 class _Device {
   _Device(EventStore remote)
     : local = InMemoryEventStore(),
-      _transport = FakeSyncTransport(
-        remote,
-        EventRegistry()..registerTallyEvents(),
-      ),
+      _transport = FakeSyncTransport(remote, buildTallyRegistry),
       cursors = InMemorySyncCursorStore() {
     service = SyncService(
       localStore: local,

@@ -12,10 +12,7 @@ void main() {
 
   setUp(() {
     remoteStore = InMemoryEventStore();
-    transport = FakeSyncTransport(
-      remoteStore,
-      EventRegistry()..registerTallyEvents(),
-    );
+    transport = FakeSyncTransport(remoteStore, buildTallyRegistry);
   });
   tearDown(() => remoteStore.dispose());
 
@@ -82,11 +79,7 @@ void main() {
   test(
     'decoding an unregistered event type fails loudly, not silently',
     () async {
-      final registryWithoutTally = EventRegistry();
-      final strictTransport = FakeSyncTransport(
-        remoteStore,
-        registryWithoutTally,
-      );
+      final strictTransport = FakeSyncTransport(remoteStore, EventRegistry.new);
       final event = TallyStarted.raised(aggregateId: 't1', label: 'x');
 
       expect(

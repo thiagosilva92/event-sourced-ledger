@@ -256,8 +256,16 @@ commit history for the exact sequence.
   `package:benchmark_harness`) with a committed baseline and a warn-only
   regression check — see "Testing strategy" above for what that does and
   doesn't guarantee
-- ⏳ Isolate offload for a large incoming sync batch — same idea, not
-  applied there yet
+- ✅ Isolate offload for a large incoming sync batch —
+  `EventCodec.decodeManyFromJson` extracts the same threshold-and-`Isolate.run`
+  logic `DriftEventStore.readAll` already used, so a sync pull's wire
+  payloads and a database read share one implementation instead of two
+  copies of the same idea. `FakeSyncTransport.pull` calls it today; a real
+  transport will call it the same way. Proven with the same kind of test
+  as the database-read case, not just a matching code shape: a concurrent
+  heartbeat timer keeps ticking while an 8,000-payload batch decodes
+  (`test/performance/sync_batch_decode_load_test.dart`) — see
+  [docs/concurrency.md](docs/concurrency.md).
 - ✅ `RecordTransactionPage` (`features/transactions/presentation/`) — a
   form over `RecordTransactionHandler`, shaped as the simplest case
   double-entry actually needs day to day: money moves from one open account

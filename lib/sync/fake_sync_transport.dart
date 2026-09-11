@@ -14,14 +14,23 @@ import 'package:ledger/sync/sync_transport.dart';
 /// server, instead of silently working because everything stayed in
 /// memory as Dart objects.
 class FakeSyncTransport implements SyncTransport {
+  /// [registryFactory] builds a fresh [EventRegistry] with every event type
+  /// this transport needs to decode registered on it. It must be a
+  /// **top-level or static function** (not a method tear-off or a closure
+  /// capturing anything) — [pull] sends it, unevaluated, to a worker
+  /// isolate for large incoming batches, so it has to be safe to run there
+  /// with no shared state. Same requirement, same reason, as
+  /// `DriftEventStore`'s constructor.
   FakeSyncTransport(
     this.remoteStore,
-    EventRegistry registry, {
+    EventRegistry Function() registryFactory, {
     this.latency = Duration.zero,
     this.failNextCalls = 0,
-  }) : _codec = EventCodec(registry);
+  }) : _registryFactory = registryFactory,
+       _codec = EventCodec(registryFactory());
 
   final EventStore remoteStore;
+  final EventRegistry Function() _registryFactory;
   final EventCodec _codec;
 
   /// Artificial delay applied to every call, to exercise UI/async handling
@@ -52,8 +61,16 @@ class FakeSyncTransport implements SyncTransport {
     final limited = page.take(limit).toList();
     if (limited.isEmpty) return PulledBatch(const [], afterSequence);
 
+    // `onWire` is what a real transport would actually receive over HTTP —
+    // decoding it is the "incoming batch" that has to not block the
+    // calling isolate once a caller asks for a large `limit`. Offloaded via
+    // EventCodec.decodeManyFromJson, the same isolate-threshold pattern
+    // DriftEventStore.readAll uses for the equivalent database-read path.
     final onWire = limited.map((s) => _codec.encodeToJson(s.event)).toList();
-    final decoded = onWire.map(_codec.decodeFromJson).toList();
+    final decoded = await EventCodec.decodeManyFromJson(
+      onWire,
+      _registryFactory,
+    );
     return PulledBatch(decoded, limited.last.sequence);
   }
 
