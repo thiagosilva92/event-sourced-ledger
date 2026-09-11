@@ -37,3 +37,10 @@ linter:
     # or a performance test's reported numbers is the right tool until
     # there is one — not worth an `ignore:` at every call site.
     avoid_print: false
+    # Deliberate, recurring architectural boundary: aggregates throw
+    # ArgumentError/StateError for invariant violations (see Result's doc
+    # comment on when to throw vs. return Result); every command handler in
+    # features/*/application/ catches exactly that and translates it into a
+    # typed Result failure for callers. That catch is the point, not a
+    # smell, and it recurs by design in every handler.
+    avoid_catching_errors: false

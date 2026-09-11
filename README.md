@@ -195,8 +195,34 @@ commit history for the exact sequence.
   architecture test, when `DriftSyncCursorStore` implementing its interface
   from `core/database/` is the same adapter-depends-on-port relationship
   `DriftEventStore` already has with `eventsourcing/` — fixed there too
-- ⏳ `accounts` / `transactions` / `reports` features
-- ⏳ Presentation layer (Riverpod providers, pages)
+- ✅ `accounts` / `transactions` domain and application layers — the first
+  real feature built on the foundation, not a test fixture:
+  - `Account` (`features/accounts/`) — name, currency, open/closed
+    lifecycle.
+  - `LedgerTransaction` (`features/transactions/`) — a double-entry
+    posting. Enforces everything it can see from its own event stream
+    (≥2 legs, none zero, one currency, sum to exactly zero — `Money`
+    arithmetic, no floating point) before ever raising
+    `TransactionRecorded`. `TransactionVoided` is a compensating event,
+    not an edit or delete.
+  - The two aggregates reference each other by id only. Whether a leg's
+    account exists and is open is a cross-aggregate check `LedgerTransaction`
+    has no way to make on its own — that's what
+    `features/*/application/` (command handlers) is for: load what's
+    needed, validate, then call the aggregate. First real production use
+    of `Result<T, F>` and of the CQRS `application` layer the README's
+    architecture diagram has described since the first commit.
+  - `AccountBalanceProjection` (`features/reports/`) — running balance
+    per account, folded from `TransactionRecorded`/`TransactionVoided`.
+    First real use of `Projection`/`ProjectionRunner` outside a test
+    fixture; correctly reverses a voided transaction by remembering its
+    legs internally, since `TransactionVoided` doesn't carry them.
+  - 51 new tests, including a case that would have crashed the
+    projection at runtime on any account event (an un-exhaustive
+    `switch` with no default) had the test not caught it before it
+    shipped.
+- ⏳ Presentation layer (Riverpod providers, pages) — the only thing left
+  between this and an actual screen
 
 ## Running
 
