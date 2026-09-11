@@ -33,8 +33,17 @@ jobs:
       - name: Run tests
         run: flutter test --coverage
 
-      - name: Upload coverage
+      - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
         with:
           name: coverage
           path: coverage/lcov.info
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage/lcov.info
+          # Don't fail the build over Codecov itself — e.g. before the repo
+          # is connected on codecov.io / before CODECOV_TOKEN is set.
+          fail_ci_if_error: false

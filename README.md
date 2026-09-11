@@ -1,5 +1,8 @@
 # event-sourced-ledger
 
+[![CI](https://github.com/thiagosilva92/event-sourced-ledger/actions/workflows/ci.yaml/badge.svg)](https://github.com/thiagosilva92/event-sourced-ledger/actions/workflows/ci.yaml)
+[![codecov](https://codecov.io/gh/thiagosilva92/event-sourced-ledger/graph/badge.svg)](https://codecov.io/gh/thiagosilva92/event-sourced-ledger)
+
 An offline-first shared household ledger for Android and iOS, built to
 demonstrate **event sourcing**, **CQRS** and deterministic multi-device
 synchronisation in a Flutter application.
