@@ -45,6 +45,10 @@ dev_dependencies:
   # Test doubles.
   mocktail: ^1.0.4
 
+  # Formal micro-benchmarks (test/performance/benchmarks/), instead of
+  # hand-rolled Stopwatch timing.
+  benchmark_harness: ^2.4.0
+
   # Strict lint set.
   very_good_analysis: ^11.0.0
 

@@ -95,6 +95,27 @@ evidence.
 | Load / stress | `test/performance/` | thousands of events, a 10,000-event offline-sync backlog absorbed in one call, 50 concurrent writers with no lost or interleaved data — of the **local embedded database**, since that's what this app has |
 | Concurrency proof | `test/performance/projection_rebuild_load_test.dart` | isolate-offloaded decode genuinely stops blocking the caller — measured with a concurrent heartbeat timer, not inferred from a smaller wall-clock number |
 | Device smoke test | `lib/main_debug_smoke_test.dart` | the production database path (real file, real native SQLite, real background isolate) actually works on physical Android hardware, not just in a test sandbox |
+| Performance benchmark | `test/performance/benchmark_test.dart`, `test/performance/benchmarks/` | steady-state cost of the operations that matter (`Money.allocate`, `Hlc.now`/`.receive`, `DriftEventStore.append`/`merge`/`readAll`), measured with `package:benchmark_harness` (warm-up + a timed exercise window) rather than a single `Stopwatch` reading, and compared against a committed baseline every run |
+
+### Benchmarks: what the regression check does and doesn't guarantee
+
+`test/performance/benchmark_test.dart` runs every benchmark, prints the
+current µs/op next to the number committed in `benchmark_baseline.json`, and
+prints a `⚠ WARN` for anything more than 50% slower. It **never fails the
+test** — two consecutive runs on the same idle laptop already swing 10-45%
+from system noise alone (that's a measured range, not a guess: see the
+commit that added this), so a tight CI gate would fail on noise far more
+often than it would catch a real regression. What this *does* catch: a
+change that makes something several times slower, which is exactly the kind
+of thing generous per-call time budgets in the load tests can hide (they
+pass as long as the whole batch finishes inside a multi-second ceiling).
+
+Refresh the baseline deliberately, after understanding *why* the numbers
+moved:
+
+```bash
+UPDATE_BENCHMARK_BASELINE=1 flutter test test/performance/benchmark_test.dart
+```
 
 ### What's deliberately not here
 
@@ -105,12 +126,13 @@ evidence.
   no container needed. Testcontainers is the right call for **the .NET
   sync server** (a separate, planned repository) once it has integration
   tests against a real Postgres/SQL Server — not here.
-- **A formal benchmark suite** (e.g. `package:benchmark_harness`, tracked
-  across commits with a regression threshold) — `test/performance/` prints
-  real numbers and gates on generous time budgets, which is enough to
-  decide "does this need an isolate" once, but isn't the same as a
-  benchmark dashboard that catches a 20% regression six months from now.
-  Would add real value; hasn't been built.
+- **A benchmark trend dashboard** — the baseline is one committed snapshot,
+  refreshed manually; there's no history of every commit's numbers charted
+  over time, and no automatic bisection of when a regression landed. The
+  warn-only local/CI comparison catches a sudden large regression at the
+  moment it's introduced; it doesn't catch six small 5% regressions
+  accumulating over months. A real dashboard is more infrastructure than a
+  portfolio repo's CI needs to prove the underlying skill.
 
 ## Status
 
@@ -140,6 +162,10 @@ commit history for the exact sequence.
   under `eventsourcing/`, the pure-Dart zone; it moved to `core/database/`
   before this test was added, with a dedicated rule pinning its location
   so that specific mistake can't quietly come back
+- ✅ Formal performance benchmarks (`test/performance/benchmark_test.dart`,
+  `package:benchmark_harness`) with a committed baseline and a warn-only
+  regression check — see "Testing strategy" above for what that does and
+  doesn't guarantee
 - ⏳ Isolate offload for a large incoming sync batch — same idea, not
   applied there yet
 - ⏳ Persisted (Drift-backed) `SyncCursorStore` — today's `SyncCursorStore`

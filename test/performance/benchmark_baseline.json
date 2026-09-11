@@ -1,0 +1,10 @@
+{
+  "DriftEventStore.append (1 event)": 565.3270209157716,
+  "DriftEventStore.merge (batch of 50, all new)": 5111.859693877551,
+  "DriftEventStore.readAll (300 events, inline decode)": 3990.962151394422,
+  "DriftEventStore.readAll (5,000 events, worker-isolate decode)": 75396.85185185185,
+  "HybridLogicalClock.now()": 0.70965275,
+  "HybridLogicalClock.receive()": 1.7223553888223055,
+  "Money.allocate(7 parts)": 1.063364968317516,
+  "Money.allocateByWeights([3, 1, 1, 5])": 1.948398
+}
