@@ -113,14 +113,19 @@ void main() {
     // A rule specific enough to catch the exact mistake that prompted this
     // file: drift_event_store.dart briefly lived under eventsourcing/ and
     // quietly broke the "pure domain layer" rule above until it was moved.
-    // Pinning both Drift-backed stores' locations directly makes that
-    // regression impossible to reintroduce by accident, for either one.
+    // Pinning every Drift-backed store's location directly makes that
+    // regression impossible to reintroduce by accident, for any of them —
+    // including drift_device_identity_store.dart, which implements
+    // core/clock/'s DeviceIdentityStore the same way the other two
+    // implement their own pure-Dart interfaces.
     final misplaced = importsByFile.keys.where(
       (path) =>
           (path.startsWith('eventsourcing/') &&
               path.contains('drift_event_store')) ||
           (path.startsWith('sync/') &&
-              path.contains('drift_sync_cursor_store')),
+              path.contains('drift_sync_cursor_store')) ||
+          (path.startsWith('core/clock/') &&
+              path.contains('drift_device_identity_store')),
     );
     expect(misplaced, isEmpty, reason: misplaced.join('\n'));
   });

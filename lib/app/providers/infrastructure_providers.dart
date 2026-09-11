@@ -30,12 +30,16 @@ final eventStoreProvider = Provider<EventStore>((ref) {
 
 /// This device's id for [Hlc] timestamps.
 ///
-/// Simplification: generated fresh per app launch rather than persisted.
-/// Harmless today — `sync/` isn't wired into the UI yet, so nothing
-/// compares this device's HLC against another device's across a restart.
-/// Before sync is wired in, this needs to persist (e.g. a settings table)
-/// so causal ordering is meaningful device-to-device across sessions, not
-/// just within one.
+/// The default here (a fresh UUID) only ever runs if nothing overrides
+/// this provider — which is true for most widget tests, where a new id
+/// every rebuild is harmless because nothing in those tests compares HLC
+/// timestamps across a restart. The real app never uses this default:
+/// `main.dart` resolves the actual node id once, via
+/// `DriftDeviceIdentityStore` (persisted in `device_identity_rows`, see
+/// `core/clock/device_identity_store.dart` for why it has to survive a
+/// restart), and overrides this provider with that value *before*
+/// `runApp` — so every event this device ever appends, including the
+/// very first one, is stamped with the same node id.
 final deviceNodeIdProvider = Provider<String>((ref) => const Uuid().v4());
 
 final hybridLogicalClockProvider = Provider<HybridLogicalClock>((ref) {

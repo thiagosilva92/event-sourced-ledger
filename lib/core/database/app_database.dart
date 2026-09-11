@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
+import 'package:ledger/core/database/tables/device_identity_rows.dart';
 import 'package:ledger/core/database/tables/event_log_entries.dart';
 import 'package:ledger/core/database/tables/sync_cursor_rows.dart';
 import 'package:path/path.dart' as p;
@@ -16,7 +17,7 @@ part 'app_database.g.dart';
 /// `DriftEventStore` asks for. It has no domain knowledge (no
 /// `DomainEvent`, no `Hlc` type here); that boundary is what keeps the
 /// event-sourcing core testable without a database at all.
-@DriftDatabase(tables: [EventLogEntries, SyncCursorRows])
+@DriftDatabase(tables: [EventLogEntries, SyncCursorRows, DeviceIdentityRows])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
@@ -29,7 +30,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -45,6 +46,9 @@ class AppDatabase extends _$AppDatabase {
     onUpgrade: (migrator, from, to) async {
       if (from < 2) {
         await migrator.createTable(syncCursorRows);
+      }
+      if (from < 3) {
+        await migrator.createTable(deviceIdentityRows);
       }
     },
     beforeOpen: (details) async {

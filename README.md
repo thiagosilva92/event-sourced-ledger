@@ -273,9 +273,20 @@ commit history for the exact sequence.
   `FloatingActionButton` (Scaffold only supports one). Manually verified on
   the physical Xiaomi device, which is what surfaced a real keyboard-overflow
   bug — see "A bug only a phone's own keyboard could have caught" below.
-- ⏳ Device node id regenerates on every launch instead of being persisted —
-  harmless until sync is actually wired into the UI, since each launch is
-  still internally consistent
+- ✅ Persisted device node id — `DeviceIdentityStore` (`core/clock/`, pure
+  Dart, next to `Hlc` itself) plus `DriftDeviceIdentityStore`
+  (`core/database/`), the same interface/adapter split as `EventStore` and
+  `SyncCursorStore`, verified against one shared contract
+  (`test/core/clock/device_identity_store_contract.dart`) run against both
+  `InMemoryDeviceIdentityStore` and the Drift-backed one. This is the
+  app's second real schema migration (v2 → v3, adding
+  `device_identity_rows`) — `app_database_migration_test.dart` now proves
+  the full v1 → v3 chain runs both additive steps, not just the one it
+  proved before. Resolved once in `main.dart`, *before* `runApp`, and
+  handed in via `ProviderScope` overrides — not a `FutureProvider`, so
+  nothing downstream (the HLC clock, every command handler) has to deal
+  with an `AsyncValue` for something that only needs to be async once, at
+  startup.
 - ✅ Persisted (Drift-backed) `SyncCursorStore` — `DriftSyncCursorStore`
   survives an app restart, verified against the same contract as
   `InMemorySyncCursorStore` (`test/sync/sync_cursor_store_contract.dart`).

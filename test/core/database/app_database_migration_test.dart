@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger/core/database/app_database.dart';
+import 'package:ledger/core/database/drift_device_identity_store.dart';
 import 'package:ledger/core/database/drift_sync_cursor_store.dart';
 import 'package:ledger/sync/sync.dart';
 import 'package:path/path.dart' as p;
@@ -13,14 +14,16 @@ import 'package:sqlite3/sqlite3.dart' as sqlite3;
 /// new in-memory database at the current schema version.
 ///
 /// A schema-v1 database (`event_log_entries` only — before
-/// `sync_cursor_rows` existed) is built by hand with the raw `sqlite3`
-/// package, exactly as a device that installed the app before this change
-/// would actually have on disk. Opening it with today's `AppDatabase` has
-/// to add the new table *and* keep the existing event log intact — either
-/// one failing would mean a real user loses data on update.
+/// `sync_cursor_rows` or `device_identity_rows` existed) is built by hand
+/// with the raw `sqlite3` package, exactly as a device that installed the
+/// app before either change would actually have on disk. Opening it with
+/// today's `AppDatabase` has to run *both* additive steps (v1 -> 2 -> 3)
+/// and keep the existing event log intact — any one of those failing would
+/// mean a real user loses data, or a stale device silently skips a step,
+/// on update.
 void main() {
-  test('upgrading a real v1 database adds sync_cursor_rows without losing '
-      'event_log_entries data', () async {
+  test('upgrading a real v1 database adds sync_cursor_rows and '
+      'device_identity_rows without losing event_log_entries data', () async {
     final dir = await Directory.systemTemp.createTemp('ledger_migration');
     addTearDown(() => dir.delete(recursive: true));
     final file = File(p.join(dir.path, 'v1.sqlite'));
@@ -30,13 +33,13 @@ void main() {
     final db = AppDatabase.forTesting(NativeDatabase(file));
     addTearDown(db.close);
 
-    // Triggers the migration (schemaVersion 1 -> 2) on first access.
+    // Triggers the migration (schemaVersion 1 -> 3) on first access.
     final survivingEvents = await db.select(db.eventLogEntries).get();
     expect(survivingEvents, hasLength(1));
     expect(survivingEvents.single.eventId, 'pre-migration-event');
     expect(survivingEvents.single.aggregateId, 'agg-1');
 
-    // The new table works, not just exists.
+    // Both new tables work, not just exist.
     final cursorStore = DriftSyncCursorStore(db);
     expect(await cursorStore.read(), SyncCursors.zero);
     await cursorStore.write(
@@ -52,6 +55,15 @@ void main() {
         lastPulledRemoteSequence: 5,
       ),
     );
+
+    final identityStore = DriftDeviceIdentityStore(db);
+    final nodeId = await identityStore.nodeId();
+    expect(nodeId, isNotEmpty);
+    // Surviving the upgrade with no prior row is the whole point here —
+    // a device updating from v1 never had a node id before, so this is
+    // exactly the "generate one for the first time" path, just reached
+    // through onUpgrade instead of onCreate.
+    expect(await identityStore.nodeId(), nodeId);
   });
 }
 
