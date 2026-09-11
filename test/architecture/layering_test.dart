@@ -36,6 +36,11 @@ void main() {
       'core/clock/',
       'core/result/',
       'eventsourcing/',
+      // sync/ talks to eventsourcing/'s interfaces (EventStore,
+      // SyncCursorStore) only — DriftEventStore and DriftSyncCursorStore,
+      // the Drift-specific implementations of those interfaces, live under
+      // core/database/, same as the reasoning for eventsourcing/ itself.
+      'sync/',
     ];
     const forbiddenPrefixes = [
       'package:flutter/',
@@ -65,13 +70,23 @@ void main() {
   });
 
   group('the foundation never depends on what is built on top of it', () {
-    // core/ and eventsourcing/ are the base of the dependency graph per the
-    // README's architecture diagram. sync/, app/ and (eventually) features/
-    // depend on them — never the other way around. A foundation file
-    // importing from `app/` or `features/` would mean the "foundation"
-    // label is a lie, and everything built on it is secretly circular.
-    const foundationZones = ['core/', 'eventsourcing/'];
-    const upperZones = ['app/', 'features/', 'sync/'];
+    // core/, eventsourcing/ and sync/ are the foundation: domain logic plus
+    // the ports (EventStore, SyncCursorStore, SyncTransport) that
+    // infrastructure implements. app/ and (eventually) features/ are what
+    // gets built *on* that foundation and consume it — never the other way.
+    //
+    // sync/ belongs here, not with app/features, even though the first
+    // version of this test filed it as an "upper" consumer layer. That was
+    // wrong, and this test is what caught it: DriftSyncCursorStore (in
+    // core/database/, an adapter) has to depend on sync/'s
+    // SyncCursorStore interface to implement it — the correct
+    // adapter-depends-on-port direction, identical to how
+    // core/database/DriftEventStore already depends on
+    // eventsourcing/EventStore. Modeling sync/ as "upper" made that
+    // adapter relationship look like a foundation-depending-on-app
+    // violation, which it never actually was.
+    const foundationZones = ['core/', 'eventsourcing/', 'sync/'];
+    const upperZones = ['app/', 'features/'];
 
     for (final zone in foundationZones) {
       test(zone, () {
@@ -91,39 +106,21 @@ void main() {
         );
       });
     }
-
-    test('sync/', () {
-      // sync/ sits between the foundation and the app: it's allowed to
-      // depend on core/ and eventsourcing/, but app/ and features/ depend
-      // on *it*, not the reverse.
-      final offenders = _violationsIn(
-        importsByFile,
-        pathPrefix: 'sync/',
-        isForbidden: (import) =>
-            import.startsWith('package:ledger/app/') ||
-            import.startsWith('package:ledger/features/'),
-      );
-      expect(
-        offenders,
-        isEmpty,
-        reason:
-            '"sync/" must not depend on app/ or features/:\n'
-            '${offenders.join('\n')}',
-      );
-    });
   });
 
-  test('the Drift-backed EventStore lives in core/database/, not '
-      'eventsourcing/ — it is the implementation, not the interface', () {
-    // A rule specific enough to catch the exact mistake that prompted
-    // this file: drift_event_store.dart briefly lived under eventsourcing/
-    // and quietly broke the "pure domain layer" rule above until it was
-    // moved. Pinning the file's location directly makes that regression
-    // impossible to reintroduce by accident.
+  test('Drift-backed implementations live in core/database/, not the '
+      'interface packages they implement', () {
+    // A rule specific enough to catch the exact mistake that prompted this
+    // file: drift_event_store.dart briefly lived under eventsourcing/ and
+    // quietly broke the "pure domain layer" rule above until it was moved.
+    // Pinning both Drift-backed stores' locations directly makes that
+    // regression impossible to reintroduce by accident, for either one.
     final misplaced = importsByFile.keys.where(
       (path) =>
-          path.startsWith('eventsourcing/') &&
-          path.contains('drift_event_store'),
+          (path.startsWith('eventsourcing/') &&
+              path.contains('drift_event_store')) ||
+          (path.startsWith('sync/') &&
+              path.contains('drift_sync_cursor_store')),
     );
     expect(misplaced, isEmpty, reason: misplaced.join('\n'));
   });

@@ -96,6 +96,7 @@ evidence.
 | Concurrency proof | `test/performance/projection_rebuild_load_test.dart` | isolate-offloaded decode genuinely stops blocking the caller — measured with a concurrent heartbeat timer, not inferred from a smaller wall-clock number |
 | Device smoke test | `lib/main_debug_smoke_test.dart` | the production database path (real file, real native SQLite, real background isolate) actually works on physical Android hardware, not just in a test sandbox |
 | Performance benchmark | `test/performance/benchmark_test.dart`, `test/performance/benchmarks/` | steady-state cost of the operations that matter (`Money.allocate`, `Hlc.now`/`.receive`, `DriftEventStore.append`/`merge`/`readAll`), measured with `package:benchmark_harness` (warm-up + a timed exercise window) rather than a single `Stopwatch` reading, and compared against a committed baseline every run |
+| Schema migration | `test/core/database/app_database_migration_test.dart` | upgrading a real pre-existing database (built by hand at schema v1) adds the new table and keeps existing data intact — the one path every other test skips by always starting from a fresh database at the current version |
 
 ### Benchmarks: what the regression check does and doesn't guarantee
 
@@ -182,8 +183,18 @@ commit history for the exact sequence.
   doesn't guarantee
 - ⏳ Isolate offload for a large incoming sync batch — same idea, not
   applied there yet
-- ⏳ Persisted (Drift-backed) `SyncCursorStore` — today's `SyncCursorStore`
-  is in-memory only; cursors don't survive an app restart yet
+- ✅ Persisted (Drift-backed) `SyncCursorStore` — `DriftSyncCursorStore`
+  survives an app restart, verified against the same contract as
+  `InMemorySyncCursorStore` (`test/sync/sync_cursor_store_contract.dart`).
+  This is also the app's first real schema migration (v1 → v2, adding the
+  `sync_cursor_rows` table): `test/core/database/app_database_migration_test.dart`
+  hand-builds a v1 database file and checks upgrading it preserves the
+  existing event log — the path every other test skips by always opening a
+  fresh database at the current schema version. Writing this surfaced that
+  `sync/` had been miscategorized as an "upper" consumer layer in the
+  architecture test, when `DriftSyncCursorStore` implementing its interface
+  from `core/database/` is the same adapter-depends-on-port relationship
+  `DriftEventStore` already has with `eventsourcing/` — fixed there too
 - ⏳ `accounts` / `transactions` / `reports` features
 - ⏳ Presentation layer (Riverpod providers, pages)
 

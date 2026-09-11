@@ -49,6 +49,11 @@ dev_dependencies:
   # hand-rolled Stopwatch timing.
   benchmark_harness: ^2.4.0
 
+  # Building a raw pre-migration database file by hand in
+  # app_database_migration_test.dart — the same package drift itself uses
+  # under the hood, declared directly rather than relied on transitively.
+  sqlite3: ^3.5.2
+
   # Strict lint set.
   very_good_analysis: ^11.0.0
 

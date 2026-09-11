@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:ledger/core/database/tables/event_log_entries.dart';
+import 'package:ledger/core/database/tables/sync_cursor_rows.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -15,7 +16,7 @@ part 'app_database.g.dart';
 /// `DriftEventStore` asks for. It has no domain knowledge (no
 /// `DomainEvent`, no `Hlc` type here); that boundary is what keeps the
 /// event-sourcing core testable without a database at all.
-@DriftDatabase(tables: [EventLogEntries])
+@DriftDatabase(tables: [EventLogEntries, SyncCursorRows])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
@@ -28,17 +29,24 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : super(executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (migrator) async {
       await migrator.createAll();
     },
-    // There is only one shipped schema so far. When schemaVersion becomes
-    // 2, add an `onUpgrade` step here (`if (from < 2) ...`) rather than
-    // editing table definitions that already shipped — migrations must
-    // stay reproducible for every version a real device might be on.
+    // Additive only, in order, one `if` per version bump — never edit a
+    // table definition that already shipped. A device can be sitting on
+    // any past version, and every step from there to today has to still
+    // run. test/core/database/app_database_migration_test.dart builds a
+    // real v1 database by hand and checks upgrading it this way preserves
+    // its data.
+    onUpgrade: (migrator, from, to) async {
+      if (from < 2) {
+        await migrator.createTable(syncCursorRows);
+      }
+    },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
     },
