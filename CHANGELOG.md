@@ -67,3 +67,9 @@ see `git log` for the exact commit-by-commit history this summarizes.
   opened on a real device — no widget test's viewport ever shrinks the
   way a real keyboard does. Fixed by wrapping the form in a
   `SingleChildScrollView`.
+- `InvalidAccountName`/`InvalidLegs` were showing the domain layer's own
+  English `ArgumentError` text verbatim in the SnackBar, bypassing
+  localization entirely for that one failure path. Fixed by mapping both
+  to a generic localized message, with the original domain message sent
+  to Crashlytics as non-fatal diagnostic context instead of shown to the
+  user.

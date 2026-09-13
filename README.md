@@ -424,6 +424,20 @@ integration, e.g. its API, database, and deployment).
   message only shown after a real form submission — while asserting the
   English strings are *absent*, which is what actually proves this isn't
   silently falling back to the default locale.
+  - Found by a later review, fixed the same way: `OpenAccountFailure`
+    and `RecordTransactionFailure`'s `InvalidAccountName`/`InvalidLegs`
+    cases carry `Account.open`/`LedgerTransaction.record`'s own English
+    `ArgumentError` text — the presentation layer was showing that raw
+    string in the SnackBar, quietly bypassing every locale this app
+    supports for exactly the domain-validation-failed path. Fixed by
+    extracting `describeOpenAccountFailure`/`describeRecordTransactionFailure`
+    as pure, directly-unit-tested functions that show a generic localized
+    message for those two cases instead, while the original domain
+    message still reaches Crashlytics as non-fatal diagnostic context —
+    see `open_account_failure_text_test.dart` /
+    `record_transaction_failure_text_test.dart`, which assert the shown
+    text is localized *and* that it never contains the raw domain
+    string.
 - ✅ Signed release builds — a real Android upload keystore (not the
   debug key `flutter run --release` uses by default), wired into
   `android/app/build.gradle.kts` via a git-ignored `key.properties`
@@ -451,7 +465,7 @@ integration, e.g. its API, database, and deployment).
   is still an open item, documented as such rather than claimed without
   evidence.
 
-**Current totals**: 210/210 tests passing, `flutter analyze` clean, CI
+**Current totals**: 216/216 tests passing, `flutter analyze` clean, CI
 green on every push to `main` — see the badge at the top of this file for
 live status.
 

@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -54,16 +57,21 @@ class _OpenAccountPageState extends ConsumerState<OpenAccountPage> {
     if (!mounted) return;
     result.fold((_) => context.pop(), (failure) {
       setState(() => _submitting = false);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(_describe(l10n, failure))));
+      if (failure case InvalidAccountName(:final message)) {
+        // Not awaited: reporting shouldn't delay showing the SnackBar,
+        // and this is a non-fatal, best-effort diagnostic anyway.
+        unawaited(
+          FirebaseCrashlytics.instance.recordError(
+            StateError('InvalidAccountName reached the UI: $message'),
+            StackTrace.current,
+          ),
+        );
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(describeOpenAccountFailure(l10n, failure))),
+      );
     });
   }
-
-  String _describe(AppLocalizations l10n, OpenAccountFailure failure) =>
-      switch (failure) {
-        AccountIdAlreadyUsed() => l10n.idAlreadyInUseMessage,
-        InvalidAccountName(:final message) => message,
-      };
 
   @override
   Widget build(BuildContext context) {
@@ -120,3 +128,18 @@ class _OpenAccountPageState extends ConsumerState<OpenAccountPage> {
     );
   }
 }
+
+/// The user-facing text for each [OpenAccountFailure] — a pure function,
+/// deliberately separate from the Crashlytics side effect
+/// [_OpenAccountPageState._submit] performs alongside it, so this mapping
+/// (specifically, that `InvalidAccountName` shows a *localized* message
+/// rather than `Account.open`'s own English, developer-facing
+/// `ArgumentError` text) is directly unit-testable without mocking
+/// Firebase.
+String describeOpenAccountFailure(
+  AppLocalizations l10n,
+  OpenAccountFailure failure,
+) => switch (failure) {
+  AccountIdAlreadyUsed() => l10n.idAlreadyInUseMessage,
+  InvalidAccountName() => l10n.invalidAccountNameMessage,
+};

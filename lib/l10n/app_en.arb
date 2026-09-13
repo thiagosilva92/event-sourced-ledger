@@ -53,6 +53,12 @@
   "idAlreadyInUseMessage": "That id is already in use — please try again.",
   "@idAlreadyInUseMessage": {"description": "Shown for both an already-used account id and an already-used transaction id — same underlying cause (a UUID collision), same message."},
 
+  "invalidAccountNameMessage": "The account name isn't valid.",
+  "@invalidAccountNameMessage": {"description": "Domain-level fallback for Account.open's own blank-name invariant — the UI's own \"Required\" field validator already prevents this in practice, so this is defense-in-depth, not an expected path. The specific reason is sent to Crashlytics as diagnostic context rather than shown here, since enumerating every internal invariant in every locale is disproportionate to a path this rare."},
+
+  "invalidTransactionMessage": "This transaction isn't valid.",
+  "@invalidTransactionMessage": {"description": "Domain-level fallback for LedgerTransaction.record's own invariants (balanced legs, one currency, no zero legs) — the form's own validation already prevents every one of these in practice. Same defense-in-depth reasoning as invalidAccountNameMessage."},
+
   "submittingSemanticLabel": "Submitting",
   "@submittingSemanticLabel": {"description": "Announced while a form's loading spinner is shown — a bare CircularProgressIndicator has no label of its own."},
 

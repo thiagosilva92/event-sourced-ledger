@@ -25,6 +25,9 @@
 
   "idAlreadyInUseMessage": "Esse identificador já está em uso — tente novamente.",
 
+  "invalidAccountNameMessage": "O nome da conta não é válido.",
+  "invalidTransactionMessage": "Essa transação não é válida.",
+
   "submittingSemanticLabel": "Enviando",
 
   "needTwoOpenAccountsTitle": "Precisa de duas contas abertas",

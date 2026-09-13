@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -82,18 +85,23 @@ class _RecordTransactionPageState extends ConsumerState<RecordTransactionPage> {
     if (!mounted) return;
     result.fold((_) => context.pop(), (failure) {
       setState(() => _submitting = false);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(_describe(l10n, failure))));
+      if (failure case InvalidLegs(:final message)) {
+        // Not awaited: reporting shouldn't delay showing the SnackBar,
+        // and this is a non-fatal, best-effort diagnostic anyway.
+        unawaited(
+          FirebaseCrashlytics.instance.recordError(
+            StateError('InvalidLegs reached the UI: $message'),
+            StackTrace.current,
+          ),
+        );
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(describeRecordTransactionFailure(l10n, failure)),
+        ),
+      );
     });
   }
-
-  String _describe(AppLocalizations l10n, RecordTransactionFailure failure) =>
-      switch (failure) {
-        TransactionIdAlreadyUsed() => l10n.idAlreadyInUseMessage,
-        ReferencedAccountNotFound() => l10n.oneAccountNoLongerExistsMessage,
-        ReferencedAccountClosed() => l10n.oneAccountClosedMessage,
-        InvalidLegs(:final message) => message,
-      };
 
   @override
   Widget build(BuildContext context) {
@@ -298,3 +306,20 @@ class _NotEnoughAccounts extends StatelessWidget {
     );
   }
 }
+
+/// The user-facing text for each [RecordTransactionFailure] — a pure
+/// function, deliberately separate from the Crashlytics side effect
+/// [_RecordTransactionPageState._submit] performs alongside it, so this
+/// mapping (specifically, that `InvalidLegs` shows a *localized* message
+/// rather than `LedgerTransaction.record`'s own English, developer-facing
+/// `ArgumentError` text) is directly unit-testable without mocking
+/// Firebase.
+String describeRecordTransactionFailure(
+  AppLocalizations l10n,
+  RecordTransactionFailure failure,
+) => switch (failure) {
+  TransactionIdAlreadyUsed() => l10n.idAlreadyInUseMessage,
+  ReferencedAccountNotFound() => l10n.oneAccountNoLongerExistsMessage,
+  ReferencedAccountClosed() => l10n.oneAccountClosedMessage,
+  InvalidLegs() => l10n.invalidTransactionMessage,
+};
