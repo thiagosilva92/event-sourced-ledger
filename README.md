@@ -53,11 +53,14 @@ data          ── Drift event store, projection tables, sync client
 
 - **Sync:** `SyncService` pushes this device's new events to the server, then
   pulls the server's new events back, cursored by plain sequence numbers on
-  each side (see "Why event sourcing" above). Today it runs against
-  `FakeSyncTransport`, an in-process stand-in that still serialises every
-  event to JSON and back through `EventCodec` — the same codepath a real
-  HTTP transport would use — so tests catch a forgotten event registration
-  the same way a real deployment would.
+  each side (see "Why event sourcing" above). Two `SyncTransport`
+  implementations exist: `FakeSyncTransport`, an in-process stand-in for
+  tests that still serialises every event to JSON and back through
+  `EventCodec` — the same codepath a real HTTP transport uses — so tests
+  catch a forgotten event registration the same way a real deployment
+  would; and `HttpSyncTransport`, which speaks real HTTP to
+  [`ledger-sync-server`](https://github.com/thiagosilva92/ledger-sync-server),
+  a separate repository (see [docs/adr/0007](docs/adr/0007-sync-server-separate-repository.md)).
 
 - **Write path:** `Command` → aggregate rehydrated from its events → invariants
   checked → new events appended to the log. There's no separate outbox table:
@@ -97,6 +100,7 @@ evidence.
 | Real device | the app itself, run on physical Android hardware | not a `test/` file — running the real app is what caught a bug nothing else here could: an earlier standalone tool that exercised the production database path wrote its own throwaway events into the *same* on-device database the real app reads, and the app's event registry (correctly) didn't know how to decode them. See the note below. |
 | Performance benchmark | `test/performance/benchmark_test.dart`, `test/performance/benchmarks/` | steady-state cost of the operations that matter (`Money.allocate`, `Hlc.now`/`.receive`, `DriftEventStore.append`/`merge`/`readAll`), measured with `package:benchmark_harness` (warm-up + a timed exercise window) rather than a single `Stopwatch` reading, and compared against a committed baseline every run |
 | Schema migration | `test/core/database/app_database_migration_test.dart` | upgrading a real pre-existing database (built by hand at schema v1) adds the new table and keeps existing data intact — the one path every other test skips by always starting from a fresh database at the current version |
+| Cross-repo integration | `test/sync/http_sync_transport_live_test.dart` (tagged `live_server`, excluded from the default run — see the file's own doc comment for how to run it) | `HttpSyncTransport` actually talks to a real, running `ledger-sync-server` instance over HTTP: push then pull round-trips real events through a real ASP.NET Core process and a real PostgreSQL database in a separate repository, confirmed by reading that server's own request logs afterward — not just that this repo's mocked-client tests (`http_sync_transport_test.dart`) produce the right bytes |
 
 ### A bug only a real device could have caught
 
@@ -243,9 +247,8 @@ README has ever flagged with a ⏳ has since been closed; the checklist
 below is now all ✅, in the order it was actually built (see the commit
 history for the exact sequence). What isn't here is either listed above
 under "What's deliberately not here," with a stated reason, or belongs to
-a separate, explicitly out-of-scope repo — a real HTTP `SyncTransport`
-talking to a .NET sync server, which `FakeSyncTransport` stands in for
-today.
+`ledger-sync-server`'s own repository (the server side of the same
+integration, e.g. its API, database, and deployment).
 
 - ✅ `Money` / `Currency` — exact arithmetic, largest-remainder allocation
 - ✅ Hybrid Logical Clock — causal ordering across devices
@@ -255,11 +258,18 @@ today.
   `DriftEventStore`, both verified against one shared behavioural contract
   (`test/eventsourcing/event_store_contract.dart`)
 - ✅ `sync/` — `SyncService` push/pull against a `SyncTransport`
-  (`FakeSyncTransport` today; a real one would speak HTTP to the .NET sync
+  (`FakeSyncTransport` for tests, `HttpSyncTransport` for the real
   server), cursor persistence, retry-safe on transport failure, verified
   with a multi-device convergence test. Deliberately uses a `sequence`
   cursor rather than `readSince`'s `Hlc` cursor — see `SyncService`'s doc
   comment for why.
+- ✅ `HttpSyncTransport` — a real `SyncTransport` speaking HTTP to
+  [`ledger-sync-server`](https://github.com/thiagosilva92/ledger-sync-server)
+  (see [docs/adr/0007](docs/adr/0007-sync-server-separate-repository.md)),
+  verified against a mocked client for exact wire-format correctness and,
+  separately, against that server actually running via its own
+  `docker compose up` — push and pull both proven to reach real container
+  replicas behind its load balancer, per that server's own request logs.
 - ✅ Isolate-offloaded decode for large event-log reads, confirmed on real
   device hardware and a test that proves the calling isolate stays
   responsive during it, not just a smaller number — see
@@ -278,8 +288,8 @@ today.
   `EventCodec.decodeManyFromJson` extracts the same threshold-and-`Isolate.run`
   logic `DriftEventStore.readAll` already used, so a sync pull's wire
   payloads and a database read share one implementation instead of two
-  copies of the same idea. `FakeSyncTransport.pull` calls it today; a real
-  transport will call it the same way. Proven with the same kind of test
+  copies of the same idea. Both `FakeSyncTransport.pull` and
+  `HttpSyncTransport.pull` call it. Proven with the same kind of test
   as the database-read case, not just a matching code shape: a concurrent
   heartbeat timer keeps ticking while an 8,000-payload batch decodes
   (`test/performance/sync_batch_decode_load_test.dart`) — see

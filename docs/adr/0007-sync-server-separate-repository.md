@@ -1,7 +1,7 @@
 # ADR 0007: The sync server is a separate repository, `FakeSyncTransport` is the seam
 
 Date: 2026-09-13
-Status: Accepted (server now exists and is live — see Consequences)
+Status: Accepted (server now exists, is live, and this client now has a real `HttpSyncTransport` — see Consequences)
 
 ## Context
 
@@ -32,12 +32,20 @@ The real implementation lives in a separate repository,
   just a namespace convention — there is no possible accidental import
   from `lib/sync` into server-side code, because there is no server-side
   code in this checkout at all.
-- As of this writing, `ledger-sync-server` is built, tested, and
-  deployed live, but this client still runs against `FakeSyncTransport`
-  — wiring a real `HttpSyncTransport` implementation is tracked as
-  known follow-up work, not yet started (see that repository's own
-  [ADR 0007](https://github.com/thiagosilva92/ledger-sync-server/blob/main/docs/adr/0007-split-cd-from-infra-changes.md)
-  and status notes for where it stands today).
+- `ledger-sync-server` is built, tested, and deployed live, and this
+  client now has a real `HttpSyncTransport`
+  (`lib/sync/http_sync_transport.dart`) implementing the same
+  `SyncTransport` contract `FakeSyncTransport` does, sending exactly the
+  wire format `EventCodec.encode` already produces to that server's
+  `POST`/`GET /events`. Verified two ways: `http_sync_transport_test.dart`
+  asserts the exact request/response shape against a mocked HTTP client
+  (no network), and `http_sync_transport_live_test.dart` (tagged
+  `live_server`, excluded from the default `flutter test` run the same
+  way `benchmark` is) pushes and pulls real events through a real,
+  running `ledger-sync-server` instance (`docker compose up` in that
+  repository) — confirmed via that server's own request logs that the
+  push and pull actually landed on two different container replicas
+  behind its YARP gateway, not just that the test asserted green.
 - Two repositories, two CI pipelines, two release cadences — a deliberate
   cost, matching how a mobile client and its backend genuinely do evolve
   on independent schedules in practice, rather than collapsing them into

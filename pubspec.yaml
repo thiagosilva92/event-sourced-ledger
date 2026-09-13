@@ -32,6 +32,10 @@ dependencies:
   # Navigation.
   go_router: ^18.0.1
 
+  # Real HTTP transport to ledger-sync-server (the sync server, kept in a
+  # separate repository — see docs/adr/0007).
+  http: ^1.5.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

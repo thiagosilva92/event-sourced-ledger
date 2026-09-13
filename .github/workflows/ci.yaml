@@ -36,7 +36,7 @@ jobs:
         # test/performance/benchmark_test.dart), which is real signal for a
         # benchmark and just latency on every PR. The `benchmark` job below
         # runs them, only on pushes to main.
-        run: flutter test --coverage --exclude-tags=benchmark
+        run: flutter test --coverage --exclude-tags=benchmark,live_server
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
