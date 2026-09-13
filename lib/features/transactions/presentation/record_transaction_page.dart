@@ -6,6 +6,7 @@ import 'package:ledger/core/money/money.dart';
 import 'package:ledger/features/accounts/presentation/account_summary.dart';
 import 'package:ledger/features/transactions/application/record_transaction_handler.dart';
 import 'package:ledger/features/transactions/domain/leg.dart';
+import 'package:ledger/l10n/app_localizations.dart';
 import 'package:uuid/uuid.dart';
 
 /// A form over `RecordTransactionHandler`, shaped as the simplest case a
@@ -53,7 +54,11 @@ class _RecordTransactionPageState extends ConsumerState<RecordTransactionPage> {
     }
   }
 
-  Future<void> _submit(AccountSummary from, AccountSummary to) async {
+  Future<void> _submit(
+    AppLocalizations l10n,
+    AccountSummary from,
+    AccountSummary to,
+  ) async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     final amount = Money.parse(
@@ -78,34 +83,39 @@ class _RecordTransactionPageState extends ConsumerState<RecordTransactionPage> {
     result.fold((_) => context.pop(), (failure) {
       setState(() => _submitting = false);
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(_describe(failure))));
+          .showSnackBar(SnackBar(content: Text(_describe(l10n, failure))));
     });
   }
 
-  String _describe(RecordTransactionFailure failure) => switch (failure) {
-    TransactionIdAlreadyUsed() =>
-      'That id is already in use — please try again.',
-    ReferencedAccountNotFound() => 'One of the accounts no longer exists.',
-    ReferencedAccountClosed() => 'One of the accounts is closed.',
-    InvalidLegs(:final message) => message,
-  };
+  String _describe(AppLocalizations l10n, RecordTransactionFailure failure) =>
+      switch (failure) {
+        TransactionIdAlreadyUsed() => l10n.idAlreadyInUseMessage,
+        ReferencedAccountNotFound() => l10n.oneAccountNoLongerExistsMessage,
+        ReferencedAccountClosed() => l10n.oneAccountClosedMessage,
+        InvalidLegs(:final message) => message,
+      };
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final openAccounts = ref
         .watch(accountSummariesProvider)
         .where((summary) => summary.isOpen)
         .toList();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Record transaction')),
+      appBar: AppBar(title: Text(l10n.recordTransactionButton)),
       body: openAccounts.length < 2
           ? const _NotEnoughAccounts()
-          : _buildForm(context, openAccounts),
+          : _buildForm(context, l10n, openAccounts),
     );
   }
 
-  Widget _buildForm(BuildContext context, List<AccountSummary> openAccounts) {
+  Widget _buildForm(
+    BuildContext context,
+    AppLocalizations l10n,
+    List<AccountSummary> openAccounts,
+  ) {
     final fromAccount = openAccounts
         .where((a) => a.id == _fromAccountId)
         .firstOrNull;
@@ -141,7 +151,9 @@ class _RecordTransactionPageState extends ConsumerState<RecordTransactionPage> {
           children: [
             DropdownButtonFormField<String>(
               initialValue: _fromAccountId,
-              decoration: const InputDecoration(labelText: 'From account'),
+              decoration: InputDecoration(
+                labelText: l10n.fromAccountFieldLabel,
+              ),
               items: [
                 for (final account in openAccounts)
                   DropdownMenuItem(
@@ -149,7 +161,7 @@ class _RecordTransactionPageState extends ConsumerState<RecordTransactionPage> {
                     child: Text(account.name),
                   ),
               ],
-              validator: (value) => value == null ? 'Required' : null,
+              validator: (value) => value == null ? l10n.fieldRequired : null,
               onChanged: (value) => setState(() {
                 _fromAccountId = value;
                 // A destination chosen under the old source may no longer
@@ -160,7 +172,7 @@ class _RecordTransactionPageState extends ConsumerState<RecordTransactionPage> {
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
               initialValue: _toAccountId,
-              decoration: const InputDecoration(labelText: 'To account'),
+              decoration: InputDecoration(labelText: l10n.toAccountFieldLabel),
               items: [
                 for (final account in toOptions)
                   DropdownMenuItem(
@@ -168,7 +180,7 @@ class _RecordTransactionPageState extends ConsumerState<RecordTransactionPage> {
                     child: Text(account.name),
                   ),
               ],
-              validator: (value) => value == null ? 'Required' : null,
+              validator: (value) => value == null ? l10n.fieldRequired : null,
               onChanged: fromAccount == null
                   ? null
                   : (value) => setState(() => _toAccountId = value),
@@ -177,26 +189,29 @@ class _RecordTransactionPageState extends ConsumerState<RecordTransactionPage> {
             TextFormField(
               controller: _amountController,
               decoration: InputDecoration(
-                labelText: 'Amount',
+                labelText: l10n.amountFieldLabel,
                 suffixText: fromAccount?.balance.currency.code,
               ),
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
                 signed: true,
               ),
-              validator: (value) => _validateAmount(value, fromAccount),
+              validator: (value) => _validateAmount(l10n, value, fromAccount),
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _descriptionController,
-              decoration: const InputDecoration(labelText: 'Description'),
-              validator: (value) =>
-                  (value == null || value.trim().isEmpty) ? 'Required' : null,
+              decoration: InputDecoration(
+                labelText: l10n.descriptionFieldLabel,
+              ),
+              validator: (value) => (value == null || value.trim().isEmpty)
+                  ? l10n.fieldRequired
+                  : null,
             ),
             const SizedBox(height: 16),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('Date'),
+              title: Text(l10n.dateFieldLabel),
               subtitle: Text(
                 '${_occurredAt.year}-${_occurredAt.month.toString().padLeft(2, '0')}-'
                 '${_occurredAt.day.toString().padLeft(2, '0')}',
@@ -209,17 +224,17 @@ class _RecordTransactionPageState extends ConsumerState<RecordTransactionPage> {
               onPressed:
                   (_submitting || fromAccount == null || toAccount == null)
                   ? null
-                  : () => _submit(fromAccount, toAccount),
+                  : () => _submit(l10n, fromAccount, toAccount),
               child: _submitting
                   ? Semantics(
-                      label: 'Submitting',
+                      label: l10n.submittingSemanticLabel,
                       child: const SizedBox(
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       ),
                     )
-                  : const Text('Record transaction'),
+                  : Text(l10n.recordTransactionButton),
             ),
           ],
         ),
@@ -227,14 +242,18 @@ class _RecordTransactionPageState extends ConsumerState<RecordTransactionPage> {
     );
   }
 
-  String? _validateAmount(String? value, AccountSummary? fromAccount) {
-    if (value == null || value.trim().isEmpty) return 'Required';
-    if (fromAccount == null) return 'Choose the from account first';
+  String? _validateAmount(
+    AppLocalizations l10n,
+    String? value,
+    AccountSummary? fromAccount,
+  ) {
+    if (value == null || value.trim().isEmpty) return l10n.fieldRequired;
+    if (fromAccount == null) return l10n.chooseFromAccountFirstMessage;
     try {
       final amount = Money.parse(value.trim(), fromAccount.balance.currency);
-      if (amount.isZero) return 'Must not be zero';
+      if (amount.isZero) return l10n.mustNotBeZeroMessage;
     } on FormatException {
-      return 'Not a valid amount';
+      return l10n.notValidAmountMessage;
     }
     return null;
   }
@@ -245,6 +264,7 @@ class _NotEnoughAccounts extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -263,13 +283,12 @@ class _NotEnoughAccounts extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'Need two open accounts',
+              l10n.needTwoOpenAccountsTitle,
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 4),
             Text(
-              'A transaction moves money between two open accounts in the '
-              'same currency. Open a second one first.',
+              l10n.needTwoOpenAccountsBody,
               style: Theme.of(context).textTheme.bodyMedium,
               textAlign: TextAlign.center,
             ),

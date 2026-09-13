@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ledger/app/router.dart';
+import 'package:ledger/l10n/app_localizations.dart';
 
 /// Root widget of the application.
 ///
@@ -28,7 +29,9 @@ class _LedgerAppState extends State<LedgerApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'Household Ledger',
+      onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
         useMaterial3: true,

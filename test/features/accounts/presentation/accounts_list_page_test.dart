@@ -10,6 +10,7 @@ import 'package:ledger/features/accounts/application/open_account_handler.dart';
 import 'package:ledger/features/accounts/presentation/accounts_list_page.dart';
 import 'package:ledger/features/transactions/application/record_transaction_handler.dart';
 import 'package:ledger/features/transactions/domain/leg.dart';
+import 'package:ledger/l10n/app_localizations.dart';
 
 void main() {
   late ProviderContainer container;
@@ -29,7 +30,11 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: const MaterialApp(home: AccountsListPage()),
+        child: const MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: AccountsListPage(),
+        ),
       ),
     );
     await tester.pumpAndSettle();

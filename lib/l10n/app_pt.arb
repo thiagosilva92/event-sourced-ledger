@@ -1,0 +1,47 @@
+{
+  "@@locale": "pt",
+
+  "appTitle": "Livro-Caixa Doméstico",
+  "accountsPageTitle": "Contas",
+  "recordTransactionTooltip": "Registrar transação",
+  "openAccountTooltip": "Abrir conta",
+
+  "accountClosedLabel": "Encerrada",
+  "closeAccountSemanticAction": "Encerrar conta",
+
+  "noAccountsYetTitle": "Nenhuma conta ainda",
+  "noAccountsYetBody": "Toque em + para abrir sua primeira conta.",
+
+  "accountClosedMessage": "{name} encerrada.",
+  "accountNotFoundMessage": "{name} não existe mais.",
+  "accountAlreadyClosedMessage": "{name} já está encerrada.",
+
+  "balanceSemanticLabel": "saldo {amount}",
+  "negativeBalanceSemanticLabel": "saldo negativo {amount}",
+
+  "fieldRequired": "Obrigatório",
+  "nameFieldLabel": "Nome",
+  "currencyFieldLabel": "Moeda",
+
+  "idAlreadyInUseMessage": "Esse identificador já está em uso — tente novamente.",
+
+  "submittingSemanticLabel": "Enviando",
+
+  "needTwoOpenAccountsTitle": "Precisa de duas contas abertas",
+  "needTwoOpenAccountsBody": "Uma transação move dinheiro entre duas contas abertas na mesma moeda. Abra uma segunda conta primeiro.",
+
+  "fromAccountFieldLabel": "Conta de origem",
+  "toAccountFieldLabel": "Conta de destino",
+  "amountFieldLabel": "Valor",
+  "descriptionFieldLabel": "Descrição",
+  "dateFieldLabel": "Data",
+
+  "chooseFromAccountFirstMessage": "Escolha primeiro a conta de origem",
+  "notValidAmountMessage": "Valor inválido",
+  "mustNotBeZeroMessage": "Não pode ser zero",
+
+  "oneAccountNoLongerExistsMessage": "Uma das contas não existe mais.",
+  "oneAccountClosedMessage": "Uma das contas está encerrada.",
+
+  "recordTransactionButton": "Registrar transação"
+}

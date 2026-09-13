@@ -1,0 +1,77 @@
+{
+  "@@locale": "en",
+
+  "appTitle": "Household Ledger",
+  "@appTitle": {"description": "The app's title, shown by the OS (task switcher, etc.)."},
+
+  "accountsPageTitle": "Accounts",
+  "recordTransactionTooltip": "Record transaction",
+  "openAccountTooltip": "Open account",
+  "@openAccountTooltip": {"description": "Used as both a tooltip/button label and the Open Account page's AppBar title."},
+
+  "accountClosedLabel": "Closed",
+  "@accountClosedLabel": {"description": "Subtitle shown under a closed account's name in the list."},
+
+  "closeAccountSemanticAction": "Close account",
+  "@closeAccountSemanticAction": {"description": "Screen-reader-only action label — the sighted UI has no visible button for this, only a long-press gesture."},
+
+  "noAccountsYetTitle": "No accounts yet",
+  "noAccountsYetBody": "Tap + to open your first account.",
+
+  "accountClosedMessage": "Closed {name}.",
+  "@accountClosedMessage": {
+    "description": "SnackBar shown after successfully closing an account.",
+    "placeholders": {"name": {"type": "String"}}
+  },
+
+  "accountNotFoundMessage": "{name} no longer exists.",
+  "@accountNotFoundMessage": {
+    "placeholders": {"name": {"type": "String"}}
+  },
+
+  "accountAlreadyClosedMessage": "{name} is already closed.",
+  "@accountAlreadyClosedMessage": {
+    "placeholders": {"name": {"type": "String"}}
+  },
+
+  "balanceSemanticLabel": "balance {amount}",
+  "@balanceSemanticLabel": {
+    "description": "Spoken-friendly label for a balance amount, e.g. \"balance 12.34 USD\" — the raw \"12.34 USD\" text a screen reader would otherwise read digit-by-digit.",
+    "placeholders": {"amount": {"type": "String"}}
+  },
+
+  "negativeBalanceSemanticLabel": "negative balance {amount}",
+  "@negativeBalanceSemanticLabel": {
+    "description": "Same as balanceSemanticLabel, for a negative amount — spoken as \"negative balance 12.34 USD\" rather than a raw minus sign a screen reader reads as \"dash\".",
+    "placeholders": {"amount": {"type": "String"}}
+  },
+
+  "fieldRequired": "Required",
+  "nameFieldLabel": "Name",
+  "currencyFieldLabel": "Currency",
+
+  "idAlreadyInUseMessage": "That id is already in use — please try again.",
+  "@idAlreadyInUseMessage": {"description": "Shown for both an already-used account id and an already-used transaction id — same underlying cause (a UUID collision), same message."},
+
+  "submittingSemanticLabel": "Submitting",
+  "@submittingSemanticLabel": {"description": "Announced while a form's loading spinner is shown — a bare CircularProgressIndicator has no label of its own."},
+
+  "needTwoOpenAccountsTitle": "Need two open accounts",
+  "needTwoOpenAccountsBody": "A transaction moves money between two open accounts in the same currency. Open a second one first.",
+
+  "fromAccountFieldLabel": "From account",
+  "toAccountFieldLabel": "To account",
+  "amountFieldLabel": "Amount",
+  "descriptionFieldLabel": "Description",
+  "dateFieldLabel": "Date",
+
+  "chooseFromAccountFirstMessage": "Choose the from account first",
+  "notValidAmountMessage": "Not a valid amount",
+  "mustNotBeZeroMessage": "Must not be zero",
+
+  "oneAccountNoLongerExistsMessage": "One of the accounts no longer exists.",
+  "oneAccountClosedMessage": "One of the accounts is closed.",
+
+  "recordTransactionButton": "Record transaction",
+  "@recordTransactionButton": {"description": "Used as both a tooltip/button label and the Record Transaction page's AppBar title."}
+}

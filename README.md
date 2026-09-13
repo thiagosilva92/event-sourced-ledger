@@ -102,6 +102,7 @@ evidence.
 | Schema migration | `test/core/database/app_database_migration_test.dart` | upgrading a real pre-existing database (built by hand at schema v1) adds the new table and keeps existing data intact — the one path every other test skips by always starting from a fresh database at the current version |
 | Cross-repo integration | `test/sync/http_sync_transport_live_test.dart` (tagged `live_server`, excluded from the default run — see the file's own doc comment for how to run it) | `HttpSyncTransport` actually talks to a real, running `ledger-sync-server` instance over HTTP: push then pull round-trips real events through a real ASP.NET Core process and a real PostgreSQL database in a separate repository, confirmed by reading that server's own request logs afterward — not just that this repo's mocked-client tests (`http_sync_transport_test.dart`) produce the right bytes |
 | Accessibility | `test/features/accessibility_test.dart` | every screen (empty states, the open-account form, the record-transaction form) against Flutter's own guideline checks — minimum tap target size (Android and iOS), every tappable element labeled, and text contrast — not just that a `Semantics` node exists somewhere |
+| Localization | `test/l10n/localization_test.dart` | forcing `locale: Locale('pt')` actually renders the Portuguese strings (including one only shown after a real form submission) and that the English strings are absent — not just that `AppLocalizations` compiles |
 
 ### A bug only a real device could have caught
 
@@ -409,8 +410,22 @@ integration, e.g. its API, database, and deployment).
   Flutter's own accessibility guideline checks (minimum tap target size,
   every tappable element labeled, text contrast) against every real
   screen state — see the Testing strategy table above.
+- ✅ Localization — English and Portuguese, generated from
+  [`lib/l10n/*.arb`](lib/l10n/) via `flutter gen-l10n` (`generate: true`
+  in `pubspec.yaml`; the generated `app_localizations*.dart` files aren't
+  committed, same convention as Drift's `*.g.dart` — see `.gitignore`).
+  Every user-visible string in the presentation layer goes through
+  `AppLocalizations`, including the accessibility semantic labels above
+  and dynamically-shown validator messages, not just the static labels
+  visible on first build. Verified two ways: every existing widget test
+  still runs against the English default, and
+  `test/l10n/localization_test.dart` forces `locale: Locale('pt')` and
+  asserts the Portuguese strings actually render — including a validator
+  message only shown after a real form submission — while asserting the
+  English strings are *absent*, which is what actually proves this isn't
+  silently falling back to the default locale.
 
-**Current totals**: 208/208 tests passing, `flutter analyze` clean, CI
+**Current totals**: 210/210 tests passing, `flutter analyze` clean, CI
 green on every push to `main` — see the badge at the top of this file for
 live status.
 

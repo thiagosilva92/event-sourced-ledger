@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:ledger/app/providers/command_providers.dart';
 import 'package:ledger/core/money/money.dart';
 import 'package:ledger/features/accounts/application/open_account_handler.dart';
+import 'package:ledger/l10n/app_localizations.dart';
 import 'package:uuid/uuid.dart';
 
 /// A minimal form over `OpenAccountHandler`. The account id is generated
@@ -37,7 +38,7 @@ class _OpenAccountPageState extends ConsumerState<OpenAccountPage> {
     super.dispose();
   }
 
-  Future<void> _submit() async {
+  Future<void> _submit(AppLocalizations l10n) async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     setState(() => _submitting = true);
@@ -54,19 +55,21 @@ class _OpenAccountPageState extends ConsumerState<OpenAccountPage> {
     result.fold((_) => context.pop(), (failure) {
       setState(() => _submitting = false);
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(_describe(failure))));
+          .showSnackBar(SnackBar(content: Text(_describe(l10n, failure))));
     });
   }
 
-  String _describe(OpenAccountFailure failure) => switch (failure) {
-    AccountIdAlreadyUsed() => 'That id is already in use — please try again.',
-    InvalidAccountName(:final message) => message,
-  };
+  String _describe(AppLocalizations l10n, OpenAccountFailure failure) =>
+      switch (failure) {
+        AccountIdAlreadyUsed() => l10n.idAlreadyInUseMessage,
+        InvalidAccountName(:final message) => message,
+      };
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: const Text('Open account')),
+      appBar: AppBar(title: Text(l10n.openAccountTooltip)),
       body: Form(
         key: _formKey,
         child: Padding(
@@ -77,14 +80,15 @@ class _OpenAccountPageState extends ConsumerState<OpenAccountPage> {
               TextFormField(
                 controller: _nameController,
                 autofocus: true,
-                decoration: const InputDecoration(labelText: 'Name'),
-                validator: (value) =>
-                    (value == null || value.trim().isEmpty) ? 'Required' : null,
+                decoration: InputDecoration(labelText: l10n.nameFieldLabel),
+                validator: (value) => (value == null || value.trim().isEmpty)
+                    ? l10n.fieldRequired
+                    : null,
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<Currency>(
                 initialValue: _currency,
-                decoration: const InputDecoration(labelText: 'Currency'),
+                decoration: InputDecoration(labelText: l10n.currencyFieldLabel),
                 items: [
                   for (final currency in _currencies)
                     DropdownMenuItem(
@@ -97,17 +101,17 @@ class _OpenAccountPageState extends ConsumerState<OpenAccountPage> {
               ),
               const SizedBox(height: 24),
               FilledButton(
-                onPressed: _submitting ? null : _submit,
+                onPressed: _submitting ? null : () => _submit(l10n),
                 child: _submitting
                     ? Semantics(
-                        label: 'Submitting',
+                        label: l10n.submittingSemanticLabel,
                         child: const SizedBox(
                           width: 20,
                           height: 20,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         ),
                       )
-                    : const Text('Open account'),
+                    : Text(l10n.openAccountTooltip),
               ),
             ],
           ),

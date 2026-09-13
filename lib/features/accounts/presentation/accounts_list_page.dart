@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:ledger/app/providers/command_providers.dart';
 import 'package:ledger/features/accounts/application/close_account_handler.dart';
 import 'package:ledger/features/accounts/presentation/account_summary.dart';
+import 'package:ledger/l10n/app_localizations.dart';
 
 /// The app's home screen: every account with its live balance, reading
 /// straight from `accountSummariesProvider` — this widget has no idea an
@@ -15,14 +16,15 @@ class AccountsListPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final summaries = ref.watch(accountSummariesProvider);
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Accounts'),
+        title: Text(l10n.accountsPageTitle),
         actions: [
           IconButton(
             icon: const Icon(Icons.swap_horiz),
-            tooltip: 'Record transaction',
+            tooltip: l10n.recordTransactionTooltip,
             onPressed: () => context.push('/transactions/record'),
           ),
         ],
@@ -43,21 +45,26 @@ class AccountsListPage extends ConsumerWidget {
                 return Semantics(
                   customSemanticsActions: summary.isOpen
                       ? {
-                          const CustomSemanticsAction(
-                            label: 'Close account',
+                          CustomSemanticsAction(
+                            label: l10n.closeAccountSemanticAction,
                           ): () =>
-                              _closeAccount(context, ref, summary),
+                              _closeAccount(context, ref, l10n, summary),
                         }
                       : const {},
                   child: ListTile(
                     title: Text(summary.name),
-                    subtitle: summary.isOpen ? null : const Text('Closed'),
+                    subtitle: summary.isOpen
+                        ? null
+                        : Text(l10n.accountClosedLabel),
                     trailing: Text(
                       summary.balance.toString(),
-                      semanticsLabel:
-                          '${summary.balance.isNegative ? 'negative ' : ''}'
-                          'balance '
-                          '${summary.balance.isNegative ? -summary.balance : summary.balance}',
+                      semanticsLabel: summary.balance.isNegative
+                          ? l10n.negativeBalanceSemanticLabel(
+                              (-summary.balance).toString(),
+                            )
+                          : l10n.balanceSemanticLabel(
+                              summary.balance.toString(),
+                            ),
                       style: TextStyle(
                         color: summary.balance.isNegative
                             ? Theme.of(context).colorScheme.error
@@ -67,7 +74,7 @@ class AccountsListPage extends ConsumerWidget {
                     ),
                     enabled: summary.isOpen,
                     onLongPress: summary.isOpen
-                        ? () => _closeAccount(context, ref, summary)
+                        ? () => _closeAccount(context, ref, l10n, summary)
                         : null,
                   ),
                 );
@@ -75,7 +82,7 @@ class AccountsListPage extends ConsumerWidget {
             ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.push('/accounts/open'),
-        tooltip: 'Open account',
+        tooltip: l10n.openAccountTooltip,
         child: const Icon(Icons.add),
       ),
     );
@@ -84,6 +91,7 @@ class AccountsListPage extends ConsumerWidget {
   Future<void> _closeAccount(
     BuildContext context,
     WidgetRef ref,
+    AppLocalizations l10n,
     AccountSummary summary,
   ) async {
     final handler = ref.read(closeAccountHandlerProvider);
@@ -93,10 +101,12 @@ class AccountsListPage extends ConsumerWidget {
     if (!context.mounted) return;
 
     final message = result.fold(
-      (_) => 'Closed ${summary.name}.',
+      (_) => l10n.accountClosedMessage(summary.name),
       (failure) => switch (failure) {
-        AccountNotFound() => '${summary.name} no longer exists.',
-        AccountAlreadyClosed() => '${summary.name} is already closed.',
+        AccountNotFound() => l10n.accountNotFoundMessage(summary.name),
+        AccountAlreadyClosed() => l10n.accountAlreadyClosedMessage(
+          summary.name,
+        ),
       },
     );
     ScaffoldMessenger.of(context)
@@ -109,6 +119,7 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -127,12 +138,12 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'No accounts yet',
+              l10n.noAccountsYetTitle,
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 4),
             Text(
-              'Tap + to open your first account.',
+              l10n.noAccountsYetBody,
               style: Theme.of(context).textTheme.bodyMedium,
               textAlign: TextAlign.center,
             ),
