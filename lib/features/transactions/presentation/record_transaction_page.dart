@@ -211,10 +211,13 @@ class _RecordTransactionPageState extends ConsumerState<RecordTransactionPage> {
                   ? null
                   : () => _submit(fromAccount, toAccount),
               child: _submitting
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                  ? Semantics(
+                      label: 'Submitting',
+                      child: const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
                     )
                   : const Text('Record transaction'),
             ),
@@ -248,10 +251,15 @@ class _NotEnoughAccounts extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.swap_horiz,
-              size: 48,
-              color: Theme.of(context).colorScheme.outline,
+            // Purely decorative — the text right below says the same
+            // thing; see AccountsListPage's empty state for why this is
+            // excluded rather than left to announce as an unlabeled image.
+            ExcludeSemantics(
+              child: Icon(
+                Icons.swap_horiz,
+                size: 48,
+                color: Theme.of(context).colorScheme.outline,
+              ),
             ),
             const SizedBox(height: 12),
             Text(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ledger/app/providers/command_providers.dart';
@@ -33,22 +34,42 @@ class AccountsListPage extends ConsumerWidget {
               separatorBuilder: (context, index) => const Divider(height: 1),
               itemBuilder: (context, index) {
                 final summary = summaries[index];
-                return ListTile(
-                  title: Text(summary.name),
-                  subtitle: summary.isOpen ? null : const Text('Closed'),
-                  trailing: Text(
-                    summary.balance.toString(),
-                    style: TextStyle(
-                      color: summary.balance.isNegative
-                          ? Theme.of(context).colorScheme.error
-                          : null,
-                      fontWeight: FontWeight.w600,
+                // Long-press alone isn't discoverable to a screen reader
+                // user — nothing hints that a row has a hidden gesture. A
+                // custom semantic action surfaces "Close account" as an
+                // explicit, announced action (TalkBack/VoiceOver's actions
+                // rotor) that fires the exact same handler, without
+                // changing sighted behavior at all.
+                return Semantics(
+                  customSemanticsActions: summary.isOpen
+                      ? {
+                          const CustomSemanticsAction(
+                            label: 'Close account',
+                          ): () =>
+                              _closeAccount(context, ref, summary),
+                        }
+                      : const {},
+                  child: ListTile(
+                    title: Text(summary.name),
+                    subtitle: summary.isOpen ? null : const Text('Closed'),
+                    trailing: Text(
+                      summary.balance.toString(),
+                      semanticsLabel:
+                          '${summary.balance.isNegative ? 'negative ' : ''}'
+                          'balance '
+                          '${summary.balance.isNegative ? -summary.balance : summary.balance}',
+                      style: TextStyle(
+                        color: summary.balance.isNegative
+                            ? Theme.of(context).colorScheme.error
+                            : null,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
+                    enabled: summary.isOpen,
+                    onLongPress: summary.isOpen
+                        ? () => _closeAccount(context, ref, summary)
+                        : null,
                   ),
-                  enabled: summary.isOpen,
-                  onLongPress: summary.isOpen
-                      ? () => _closeAccount(context, ref, summary)
-                      : null,
                 );
               },
             ),
@@ -94,10 +115,15 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.account_balance_wallet_outlined,
-              size: 48,
-              color: Theme.of(context).colorScheme.outline,
+            // Purely decorative — the text right below says the same
+            // thing. Without this, some screen readers still announce an
+            // unlabeled icon as "image", noise a sighted user never sees.
+            ExcludeSemantics(
+              child: Icon(
+                Icons.account_balance_wallet_outlined,
+                size: 48,
+                color: Theme.of(context).colorScheme.outline,
+              ),
             ),
             const SizedBox(height: 12),
             Text(

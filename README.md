@@ -101,6 +101,7 @@ evidence.
 | Performance benchmark | `test/performance/benchmark_test.dart`, `test/performance/benchmarks/` | steady-state cost of the operations that matter (`Money.allocate`, `Hlc.now`/`.receive`, `DriftEventStore.append`/`merge`/`readAll`), measured with `package:benchmark_harness` (warm-up + a timed exercise window) rather than a single `Stopwatch` reading, and compared against a committed baseline every run |
 | Schema migration | `test/core/database/app_database_migration_test.dart` | upgrading a real pre-existing database (built by hand at schema v1) adds the new table and keeps existing data intact — the one path every other test skips by always starting from a fresh database at the current version |
 | Cross-repo integration | `test/sync/http_sync_transport_live_test.dart` (tagged `live_server`, excluded from the default run — see the file's own doc comment for how to run it) | `HttpSyncTransport` actually talks to a real, running `ledger-sync-server` instance over HTTP: push then pull round-trips real events through a real ASP.NET Core process and a real PostgreSQL database in a separate repository, confirmed by reading that server's own request logs afterward — not just that this repo's mocked-client tests (`http_sync_transport_test.dart`) produce the right bytes |
+| Accessibility | `test/features/accessibility_test.dart` | every screen (empty states, the open-account form, the record-transaction form) against Flutter's own guideline checks — minimum tap target size (Android and iOS), every tappable element labeled, and text contrast — not just that a `Semantics` node exists somewhere |
 
 ### A bug only a real device could have caught
 
@@ -395,8 +396,21 @@ integration, e.g. its API, database, and deployment).
     migration, widget), locally and in CI — see the current total below;
     three more milestones (isolate offload for sync, the transaction
     screen, and the persisted device id) landed after this one.
+- ✅ Accessibility — every screen labeled for a screen reader, not just
+  visually complete: the account list's long-press-to-close gesture (never
+  discoverable to a screen reader on its own) is also exposed as an
+  explicit `CustomSemanticsAction`; balances get a spoken-friendly label
+  ("negative balance 12.34 USD", not a raw "-12.34 USD" string a screen
+  reader reads digit-by-digit as a minus sign); purely decorative icons
+  (the two empty states) are excluded from the semantics tree instead of
+  announcing as an unlabeled "image"; and the loading spinner shown while
+  a form submits gets an explicit "Submitting" label, since a bare
+  `CircularProgressIndicator` announces nothing on its own. Verified with
+  Flutter's own accessibility guideline checks (minimum tap target size,
+  every tappable element labeled, text contrast) against every real
+  screen state — see the Testing strategy table above.
 
-**Current totals**: 193/193 tests passing, `flutter analyze` clean, CI
+**Current totals**: 208/208 tests passing, `flutter analyze` clean, CI
 green on every push to `main` — see the badge at the top of this file for
 live status.
 

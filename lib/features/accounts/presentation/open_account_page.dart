@@ -99,10 +99,13 @@ class _OpenAccountPageState extends ConsumerState<OpenAccountPage> {
               FilledButton(
                 onPressed: _submitting ? null : _submit,
                 child: _submitting
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                    ? Semantics(
+                        label: 'Submitting',
+                        child: const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
                       )
                     : const Text('Open account'),
               ),
