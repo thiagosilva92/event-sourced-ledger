@@ -44,6 +44,12 @@ dependencies:
   # flutter_localizations' generated code depends on.
   intl: ^0.20.3
 
+  # Crash reporting — see main.dart's error-handling wiring and
+  # docs/adr/0009. Firebase project: household-ledger-57965 (free Spark
+  # plan, no billing account, no usage cap on Crashlytics specifically).
+  firebase_core: ^4.14.0
+  firebase_crashlytics: ^5.3.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

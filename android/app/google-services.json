@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "135442423680",
+    "project_id": "household-ledger-57965",
+    "storage_bucket": "household-ledger-57965.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:135442423680:android:1a4239943460e7b95eeb65",
+        "android_client_info": {
+          "package_name": "dev.tsilva.ledger"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDw2G3H5KkoYZ1ueg2y6tK-CbJUj6de7-4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

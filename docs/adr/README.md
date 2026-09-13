@@ -20,3 +20,5 @@ to reverse-engineer *why* from the diff alone.
 | [0005](0005-isolate-offload-threshold.md) | Threshold-based isolate offload for CPU-bound decode |
 | [0006](0006-regex-import-scan-architecture-test.md) | Enforce layering with a regex-based import scan |
 | [0007](0007-sync-server-separate-repository.md) | The sync server is a separate repository |
+| [0008](0008-signed-release-builds.md) | Real signed release builds, via `key.properties` locally and secrets in CI |
+| [0009](0009-firebase-crashlytics.md) | Firebase Crashlytics for crash reporting, over Sentry |

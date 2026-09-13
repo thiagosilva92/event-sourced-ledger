@@ -77,3 +77,60 @@ jobs:
 
       - name: Run benchmarks
         run: flutter test --tags=benchmark --reporter expanded
+
+  release-build:
+    # Same gating as `benchmark`: a merged PR, not every PR push — a
+    # signed release build is the real release artifact, built once per
+    # thing that actually ships, not on every iteration of a change still
+    # under review.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.3'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate code
+        run: dart run build_runner build
+
+      # Recreates exactly what a local `android/key.properties` +
+      # `upload-keystore.jks` would be — see android/build.gradle.kts,
+      # which signs with these if present and falls back to the debug
+      # key otherwise (so a fork or a PR from someone without these
+      # secrets still builds, just unsigned-for-release).
+      - name: Restore signing keystore
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/upload-keystore.jks
+          cat > android/key.properties <<EOF
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          storeFile=upload-keystore.jks
+          EOF
+
+      - name: Build signed release APK
+        run: flutter build apk --release
+
+      # Proves the APK is actually signed with the real release key, not
+      # silently falling back to the debug key because a secret was
+      # empty or misnamed — the same discipline this repo applies
+      # everywhere else (verify the real artifact, don't trust that the
+      # steps ran without erroring).
+      - name: Verify release signature
+        run: |
+          BUILD_TOOLS=$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)
+          "$BUILD_TOOLS/apksigner" verify --print-certs \
+            build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Upload signed APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-signed
+          path: build/app/outputs/flutter-apk/app-release.apk

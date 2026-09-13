@@ -424,6 +424,32 @@ integration, e.g. its API, database, and deployment).
   message only shown after a real form submission — while asserting the
   English strings are *absent*, which is what actually proves this isn't
   silently falling back to the default locale.
+- ✅ Signed release builds — a real Android upload keystore (not the
+  debug key `flutter run --release` uses by default), wired into
+  `android/app/build.gradle.kts` via a git-ignored `key.properties`
+  locally and four GitHub secrets in CI. Verified by actually running
+  `apksigner verify --print-certs` against the built APK and confirming
+  the printed certificate fingerprint matches the keystore's, both
+  locally and as a CI step (`release-build` job, gated to pushes on
+  `main` the same way `benchmark` is) before the signed APK is uploaded
+  as a build artifact — see [docs/adr/0008](docs/adr/0008-signed-release-builds.md)
+  for what this does and doesn't prove (it's the build side of a release
+  pipeline; there's no Play Console account, so nothing publishes
+  anywhere).
+- ✅ Crash reporting — Firebase Crashlytics (chosen over Sentry
+  specifically because Crashlytics carries no usage cap on any Firebase
+  plan, including the free one — see
+  [docs/adr/0009](docs/adr/0009-firebase-crashlytics.md) for the full
+  comparison). `main.dart` wires both `FlutterError.onError` and
+  `PlatformDispatcher.instance.onError` — the two separate error sources
+  Crashlytics actually needs to catch everything, not just the framework
+  half. **Not yet verified on a real device** (none was connected when
+  this was built) — the build itself is proven (a real signed release
+  APK built successfully with the Crashlytics native library linked in),
+  but the on-device "does a real crash actually reach the Firebase
+  console" proof this project's testing philosophy otherwise insists on
+  is still an open item, documented as such rather than claimed without
+  evidence.
 
 **Current totals**: 210/210 tests passing, `flutter analyze` clean, CI
 green on every push to `main` — see the badge at the top of this file for
@@ -443,3 +469,22 @@ Requires Flutter 3.47+ / Dart 3.13+.
 `flutter run -d <device>` now runs the real app — confirmed on Android 16 /
 arm64. See "A bug only a real device could have caught" above for why there
 used to be a separate command for this.
+
+### Building a signed release
+
+`flutter build apk --release` signs with the debug key unless
+`android/key.properties` exists. To build a real signed release locally:
+
+```bash
+keytool -genkeypair -v -keystore android/app/upload-keystore.jks \
+  -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+cp android/key.properties.example android/key.properties
+# edit android/key.properties with the passwords keytool just asked for
+flutter build apk --release
+```
+
+Neither file is committed (see `.gitignore`) — this is exactly what CI's
+`release-build` job does instead, from four repository secrets
+(`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`,
+`ANDROID_KEY_PASSWORD`, `ANDROID_KEY_ALIAS`). See
+[docs/adr/0008](docs/adr/0008-signed-release-builds.md).
