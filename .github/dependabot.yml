@@ -1,0 +1,15 @@
+version: 2
+updates:
+  # Dart/Flutter package dependencies (pubspec.yaml).
+  - package-ecosystem: "pub"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  # The GitHub Actions themselves (actions/checkout, subosito/flutter-action,
+  # codecov-action, etc.) — pinned action versions are a supply-chain
+  # surface too, same reasoning as ledger-sync-server's dependabot.yml.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

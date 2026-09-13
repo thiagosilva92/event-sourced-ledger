@@ -217,9 +217,9 @@ actually calls for, not on every PR iteration.
   service (Postgres, Kafka) in Docker for an integration test. This repo
   has no external service: SQLite is embedded in-process, so
   `DriftEventStore`'s tests already run against a real SQLite engine with
-  no container needed. Testcontainers is the right call for **the .NET
-  sync server** (a separate, planned repository) once it has integration
-  tests against a real Postgres/SQL Server — not here.
+  no container needed. It's the right call for
+  [`ledger-sync-server`](https://github.com/thiagosilva92/ledger-sync-server)
+  (a real Postgres to test against) — not here.
 - **A benchmark trend dashboard** — the baseline is one committed snapshot,
   refreshed manually; there's no history of every commit's numbers charted
   over time, and no automatic bisection of when a regression landed. The
@@ -227,6 +227,17 @@ actually calls for, not on every PR iteration.
   moment it's introduced; it doesn't catch six small 5% regressions
   accumulating over months. A real dashboard is more infrastructure than a
   portfolio repo's CI needs to prove the underlying skill.
+- **CodeQL** — GitHub's static analysis doesn't support Dart as a scanned
+  language (the supported list is C/C++, C#, Go, Java/Kotlin,
+  JavaScript/TypeScript, Python, Ruby, and Swift). Running it against just
+  the thin, Flutter-generated Android/iOS platform wrapper code in
+  `android/`/`ios/` — the only Kotlin/Swift here, and not this app's own
+  logic — would be scanning theater, not real coverage. Dependabot
+  (`.github/dependabot.yml`) still applies: dependency scanning and
+  language-level static analysis are different concerns, and only one of
+  them has a tool that covers Dart.
+  [`ledger-sync-server`](https://github.com/thiagosilva92/ledger-sync-server)
+  runs CodeQL against its C# code.
 
 ## Architecture Decision Records
 
