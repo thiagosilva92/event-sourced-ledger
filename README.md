@@ -224,6 +224,15 @@ actually calls for, not on every PR iteration.
   accumulating over months. A real dashboard is more infrastructure than a
   portfolio repo's CI needs to prove the underlying skill.
 
+## Architecture Decision Records
+
+The non-obvious calls behind this codebase — event sourcing over CRUD,
+why sync uses sequence cursors instead of comparing HLC timestamps,
+Drift/Riverpod, threshold-based isolate offload, the regex-based
+architecture test, and keeping the sync server in a separate repository
+— are written up with context, consequences, and rejected alternatives
+in [docs/adr](docs/adr/README.md).
+
 ## Status
 
 **Feature-complete for what this repo sets out to prove**: event sourcing,
