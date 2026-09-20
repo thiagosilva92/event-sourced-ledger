@@ -70,7 +70,7 @@ dev_dependencies:
   # Building a raw pre-migration database file by hand in
   # app_database_migration_test.dart — the same package drift itself uses
   # under the hood, declared directly rather than relied on transitively.
-  sqlite3: ^3.5.2
+  sqlite3: ^3.6.0
 
   # Strict lint set.
   very_good_analysis: ^11.0.0
