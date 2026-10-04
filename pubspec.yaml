@@ -14,7 +14,7 @@ dependencies:
   flutter_localizations:
     sdk: flutter
 
-  cupertino_icons: ^1.0.8
+  cupertino_icons: ^2.0.0
   meta: ^1.16.0
 
   # State management (CQRS read side feeds Riverpod streams).
